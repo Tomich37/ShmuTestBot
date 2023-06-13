@@ -1,3 +1,4 @@
-/June.xlsx
-/config.ini
+/*.xlsx
+/*.ini
 /bd
+__pycache__

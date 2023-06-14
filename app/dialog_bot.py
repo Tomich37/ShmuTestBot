@@ -37,15 +37,44 @@ class DialogBot:
 
         # Обработчик команды /start
         @bot.message_handler(commands=['start'])
-        def start(message):
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            events_button = types.KeyboardButton("События")
+        def handle_start(message):
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
+            events_button = types.KeyboardButton(text="События")
+            # users_button = types.KeyboardButton("Создать БД юзеров")
             markup.add(events_button)
-            bot.send_message(message.chat.id, "Привет! Чтобы просмотреть мероприятия, нажми кнопку 'События'.", reply_markup=markup)
+            markup.add(contact_button)
+            # markup.add(users_button)
+            
+            bot.send_message(message.chat.id, "Для авторизации прошу поделиться вашим номереом телефона", reply_markup=markup)
+            # Передача user_id в database.py
 
         @bot.message_handler(func=lambda message: message.text == "События")
         def handle_events_button(message):
             events(message)
+
+        # Обработчик получения контакта
+        @bot.message_handler(content_types=['contact'])
+        def handle_contact(message):
+            user_id = message.from_user.id
+            contact = message.contact
+            phone_number = contact.phone_number
+        
+            # Отправляем подтверждение
+            bot.send_message(message.chat.id, "Спасибо! Ваш номер телефона был получен.")
+            self.database.set_user_data(user_id, phone_number)
+            print(user_id, phone_number, contact)
+        
+        # Создание таблицы пользователей одной кнопкой, создано, больше не нужено
+        # @bot.message_handler(func=lambda message: message.text == "Создать БД юзеров")
+        # def handle_users_button(message):
+        #     users(message)
+
+        # @bot.message_handler(commands=['users'])
+        # def users(message):
+        #     self.database.create_users_table()
+        #     print("Таблица создана")
+        #     bot.send_message(message.chat.id, "Таблица создана")            
 
         # Обработчик команды /events
         @bot.message_handler(commands=['events'])

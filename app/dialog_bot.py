@@ -1,11 +1,135 @@
-from app.modules.db_controller import DbController
+import configparser
+import telebot
+from .database import Database
+from telebot import types
 
+block_size = 5
+current_position = 0
 
-class DialogBot():
-    db: DbController = None
+class DialogBot:
+    def __init__(self):
+        # Чтение файла конфигурации
+        config = configparser.ConfigParser()
+        config.read('./config.ini')
 
-    def __init__(self) -> None:
-        db = DbController()
+        # Получение значения токена из файла конфигурации
+        self.token = config.get('default', 'token')
+
+        # Получение пути к файлу базы данных из файла конфигурации
+        db_path_events = config.get('default', 'db_path_events')
+        db_path_users = config.get('default', 'db_path_users')
+
+        # Инициализация объекта базы данных с передачей пути к файлу базы данных
+        self.database = Database(db_path_events, db_path_users)
+
 
     def run(self):
-        pass
+        bot = telebot.TeleBot(self.token)
+
+        # Показывает меню с кнопками
+        def show_menu(chat_id):
+            markup = types.InlineKeyboardMarkup()
+            next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
+            prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
+            markup.row(prev_button)
+            markup.row(next_button)
+            bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
+
+        # Обработчик команды /start
+        @bot.message_handler(commands=['start'])
+        def start(message):
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            events_button = types.KeyboardButton("События")
+            markup.add(events_button)
+            bot.send_message(message.chat.id, "Привет! Чтобы просмотреть мероприятия, нажми кнопку 'События'.", reply_markup=markup)
+
+        @bot.message_handler(func=lambda message: message.text == "События")
+        def handle_events_button(message):
+            events(message)
+
+        # Обработчик команды /events
+        @bot.message_handler(commands=['events'])
+        def events(message):
+            conn = self.database.get_database_connection_events()  # Создание нового соединения
+            cursor = conn.cursor()
+
+            sql_query = "SELECT date, place, event FROM events"
+            cursor.execute(sql_query)
+            events_list = cursor.fetchall()
+
+            if current_position >= len(events_list):
+                bot.send_message(message.chat.id, "Больше нет мероприятий.")
+            else:
+                events_to_display = events_list[current_position:current_position+block_size]
+                response = "Мероприятия:\n\n"
+                for event in events_to_display:
+                    response += f"Дата: {event[0]}\n"
+                    response += f"Место проведения: {event[1]}\n"
+                    response += f"Мероприятие: {event[2]}\n\n"
+                bot.send_message(message.chat.id, response, reply_markup=get_pagination_buttons())
+            
+            conn.close()
+
+        # Получает кнопки пагинации
+        def get_pagination_buttons():
+            markup = types.InlineKeyboardMarkup()
+            next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
+            prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
+            markup.row(prev_button, next_button)
+            return markup
+
+        # Обработчик нажатия кнопок
+        @bot.callback_query_handler(func=lambda call: True)
+        def handle_button_click(call):
+            if call.data == 'next':
+                next_events(call)
+            elif call.data == 'prev':
+                prev_events(call)
+                
+        # Обработчик команды /prev
+        def prev_events(call):
+            global current_position
+            if current_position == 0:
+                bot.answer_callback_query(callback_query_id=call.id, text="Это первая страница.")
+                return
+
+            current_position -= block_size
+            if current_position < 0:
+                current_position = 0
+
+            events_list = self.database.get_events()
+            events_to_display = events_list[current_position:current_position+block_size]
+            response = "Мероприятия:\n\n"
+            for event in events_to_display:
+                response += f"Дата: {event[0]}\n"
+                response += f"Место проведения: {event[1]}\n"
+                response += f"Мероприятие: {event[2]}\n\n"
+
+            try:
+                bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=get_pagination_buttons(), disable_web_page_preview=True)
+            except telebot.apihelper.ApiTelegramException as e:
+                print(f"Failed to edit message: {e}")
+
+        # Обработчик команды /next
+        def next_events(call):
+            global current_position
+            current_position += block_size
+
+            events_list = self.database.get_events()
+            if current_position >= len(events_list):
+                current_position -= block_size
+                bot.answer_callback_query(callback_query_id=call.id, text="Больше нет мероприятий.")
+                return
+
+            events_to_display = events_list[current_position:current_position+block_size]
+            response = "Мероприятия:\n\n"
+            for event in events_to_display:
+                response += f"Дата: {event[0]}\n"
+                response += f"Место проведения: {event[1]}\n"
+                response += f"Мероприятие: {event[2]}\n\n"
+
+            bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=get_pagination_buttons())
+
+        # Запуск бота
+        bot.polling()
+

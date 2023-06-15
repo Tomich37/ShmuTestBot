@@ -18,6 +18,9 @@ class DialogBot:
         # Создание экземпляра класса Database
         self.database = Database()
 
+        # Переменная для отслеживания авторизации user
+        self.authorized_user = False
+
     def run(self):
         bot = telebot.TeleBot(self.token)
 
@@ -56,9 +59,11 @@ class DialogBot:
             if self.database.user_exists(phone_number):
                 # Обновляем запись существующего пользователя
                 self.database.update_user(user_id, phone_number, first_name, last_name)
+                self.authorized_user = True
             else:
                 # Добавляем нового пользователя
                 self.database.add_user(user_id, phone_number, first_name, last_name)
+                self.authorized_user = True
 
             # Удаляем кнопку "Поделиться телефоном" из клавиатуры
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
@@ -74,21 +79,27 @@ class DialogBot:
 
         # Обработчик команды /events
         @bot.message_handler(commands=['events'])
-        def __events(message):
+        def __events(message):            
+            
+            if self.authorized_user == True: # Проверка на авторизацию
+                # Получение информации из events.db
+                events_list = self.database.get_events()
 
-            # Получение информации из events.db
-            events_list = self.database.get_events()
-
-            if current_position >= len(events_list):
-                bot.send_message(message.chat.id, "Больше нет мероприятий.")
+                if current_position >= len(events_list):
+                    bot.send_message(message.chat.id, "Больше нет мероприятий.")
+                else:
+                    events_to_display = events_list[current_position:current_position+block_size]
+                    response = "Мероприятия: \n\n"
+                    for event in events_to_display:
+                        response += f"Дата: {event[0]}\n"
+                        response += f"Место проведения: {event[1]}\n"
+                        response += f"Мероприятие: {event[2]}\n\n"
+                    bot.send_message(message.chat.id, response, reply_markup=__get_pagination_buttons())
             else:
-                events_to_display = events_list[current_position:current_position+block_size]
-                response = "Мероприятия: \n\n"
-                for event in events_to_display:
-                    response += f"Дата: {event[0]}\n"
-                    response += f"Место проведения: {event[1]}\n"
-                    response += f"Мероприятие: {event[2]}\n\n"
-                bot.send_message(message.chat.id, response, reply_markup=__get_pagination_buttons())
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+                contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
+                markup.add(contact_button)
+                bot.send_message(message.chat.id, "Вы не авторизировались, для продолжения предоставьте номер телефона", reply_markup=markup)
 
         # Получает кнопки пагинации
         def __get_pagination_buttons():
@@ -148,6 +159,8 @@ class DialogBot:
                 response += f"Место проведения: {event[1]}\n"
                 response += f"Мероприятие: {event[2]}\n\n"
 
+            if current_position >= len(events_list):
+                response += "\n\nЭто последняя страница."
             bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=__get_pagination_buttons())
 
         # Запуск бота

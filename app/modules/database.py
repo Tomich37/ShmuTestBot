@@ -4,7 +4,6 @@ class Database:
     def __init__(self, db_path_events, db_path_users):
         self.db_path_events = db_path_events
         self.db_path_users = db_path_users
-        self.user_id = None
 
     # Получение данных о пользователе из message_handler в dialog_bot    
     def set_user_data(self, user_id, phone_number):

@@ -15,13 +15,8 @@ class DialogBot:
         # Получение значения токена из файла конфигурации
         self.token = config.get('default', 'token')
 
-        # Получение пути к файлу базы данных из файла конфигурации
-        db_path_events = config.get('default', 'db_path_events')
-        db_path_users = config.get('default', 'db_path_users')
-
-        # Инициализация объекта базы данных с передачей пути к файлу базы данных
-        self.database = Database(db_path_events, db_path_users)
-
+        # Создание экземпляра класса Database
+        self.database = Database()
 
     def run(self):
         bot = telebot.TeleBot(self.token)
@@ -75,11 +70,11 @@ class DialogBot:
         # Вызов функции events при получении сообщения "События"
         @bot.message_handler(func=lambda message: message.text == "События")
         def _handle_events_button(message):
-            events(message)
+            _events(message)
 
         # Обработчик команды /events
         @bot.message_handler(commands=['events'])
-        def events(message):
+        def _events(message):
 
             # Получение информации из events.db
             events_list = self.database.get_events()
@@ -88,7 +83,7 @@ class DialogBot:
                 bot.send_message(message.chat.id, "Больше нет мероприятий.")
             else:
                 events_to_display = events_list[current_position:current_position+block_size]
-                response = "Мероприятия:\n\n"
+                response = "Мероприятия: \n\n"
                 for event in events_to_display:
                     response += f"Дата: {event[0]}\n"
                     response += f"Место проведения: {event[1]}\n"

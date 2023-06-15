@@ -1,9 +1,15 @@
 import sqlite3, configparser
 
 class Database:
-    def __init__(self, db_path_events, db_path_users):
-        self.db_path_events = db_path_events
-        self.db_path_users = db_path_users
+    def __init__(self):
+    
+        # Чтение файла конфигурации
+        config = configparser.ConfigParser()
+        config.read('./config.ini')
+
+        # Получение пути к файлу базы данных из файла конфигурации
+        self.db_path_events = config.get('default', 'db_path_events')
+        self.db_path_users = config.get('default', 'db_path_users')
 
     # Получение данных о пользователе из message_handler в dialog_bot    
     def set_user_data(self, user_id, phone_number):

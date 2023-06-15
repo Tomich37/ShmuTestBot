@@ -40,14 +40,9 @@ class DialogBot:
         def handle_start(message):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
-            events_button = types.KeyboardButton(text="События")
-            # users_button = types.KeyboardButton("Создать БД юзеров")
-            markup.add(events_button)
             markup.add(contact_button)
-            # markup.add(users_button)
             
             bot.send_message(message.chat.id, "Для авторизации прошу поделиться вашим номереом телефона", reply_markup=markup)
-            # Передача user_id в database.py
 
         @bot.message_handler(func=lambda message: message.text == "События")
         def handle_events_button(message):
@@ -56,26 +51,31 @@ class DialogBot:
         # Обработчик получения контакта
         @bot.message_handler(content_types=['contact'])
         def handle_contact(message):
-            user_id = message.from_user.id
             contact = message.contact
+            user_id = message.from_user.id
+            first_name = message.from_user.first_name
+            last_name = message.from_user.last_name
             phone_number = contact.phone_number
-        
-            # Отправляем подтверждение
-            bot.send_message(message.chat.id, "Спасибо! Ваш номер телефона был получен.")
+
+            # Отправляем в database значения user_id и phone_number
             self.database.set_user_data(user_id, phone_number)
-            print(user_id, phone_number, contact)
-        
-        # Создание таблицы пользователей одной кнопкой, создано, больше не нужено
-        # @bot.message_handler(func=lambda message: message.text == "Создать БД юзеров")
-        # def handle_users_button(message):
-        #     users(message)
+            print(user_id, phone_number, first_name, last_name)
 
-        # @bot.message_handler(commands=['users'])
-        # def users(message):
-        #     self.database.create_users_table()
-        #     print("Таблица создана")
-        #     bot.send_message(message.chat.id, "Таблица создана")            
+                # Проверяем, существует ли пользователь в базе данных
+            if self.database.user_exists(phone_number):
+                # Обновляем запись существующего пользователя
+                self.database.update_user(user_id, phone_number, first_name, last_name)
+            else:
+                # Добавляем нового пользователя
+                self.database.add_user(user_id, phone_number, first_name, last_name)
 
+            # Удаляем кнопку "Поделиться телефоном" из клавиатуры
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            events_button = types.KeyboardButton(text="События")
+            markup.add(events_button)
+            
+            bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
+            
         # Обработчик команды /events
         @bot.message_handler(commands=['events'])
         def events(message):

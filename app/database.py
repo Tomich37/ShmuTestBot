@@ -5,41 +5,42 @@ class Database:
         self.db_path_events = db_path_events
         self.db_path_users = db_path_users
         self.user_id = None
-        
+
+    # Получение данных о пользователе из message_handler в dialog_bot    
     def set_user_data(self, user_id, phone_number):
         self.user_id = user_id
         self.phone_number = phone_number
 
-    def search_user(self):
+    # Проверка на наличие пользователя в БД
+    def user_exists(self, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT authorized FROM users WHERE user_id=?", (self.user_id,))
+            cursor.execute("SELECT authorized FROM users WHERE phone_number=?", (phone_number,))
             result = cursor.fetchone()
-        return result
+        return result is not None
     
-    def get_database_connection_events(self):
-        conn = sqlite3.connect(self.db_path_events)
-        return conn
+    # Обновление записил пользователя в БД users
+    def update_user(self, user_id, phone_number, first_name, last_name):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET user_id=?, authorized=?, first_name=?, last_name=? WHERE phone_number=?", (user_id, True, first_name, last_name, phone_number))
+            conn.commit()
+
+    #Добавление нового пользователя в БД users    
+    def add_user(self, user_id, phone_number, first_name, last_name):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized) VALUES (?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True))
+            conn.commit()
 
     def get_database_connection_users(self):
         conn = sqlite3.connect(self.db_path_users)
         return conn
-    
-    # Создание таблицы пользователей
-    def create_users_table(self):
-        with self.get_database_connection_users() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            phone_number INTEGER UNIQUE,
-                            userid INTEGER UNIQUE,
-                            role TEXT,
-                            region TEXT,
-                            events TEXT,
-                            authorized INTEGER
-                        );''')
-            conn.commit()       
 
+    def get_database_connection_events(self):
+        conn = sqlite3.connect(self.db_path_events)
+        return conn    
+    
     def get_events(self):
         with self.get_database_connection_events() as conn:
             cursor = conn.cursor()

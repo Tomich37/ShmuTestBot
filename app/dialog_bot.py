@@ -1,6 +1,6 @@
 import configparser
 import telebot
-from .database import Database
+from .modules.database import Database
 from telebot import types
 
 block_size = 5

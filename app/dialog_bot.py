@@ -22,7 +22,7 @@ class DialogBot:
         bot = telebot.TeleBot(self.token)
 
         # Показывает меню с кнопками
-        def _show_menu(chat_id):
+        def __show_menu(chat_id):
             markup = types.InlineKeyboardMarkup()
             next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
             prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
@@ -32,7 +32,7 @@ class DialogBot:
 
         # Обработчик команды /start
         @bot.message_handler(commands=['start'])
-        def _handle_start(message):
+        def __handle_start(message):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
             markup.add(contact_button)
@@ -41,7 +41,7 @@ class DialogBot:
 
         # Обработчик получения контакта
         @bot.message_handler(content_types=['contact'])
-        def _handle_contact(message):
+        def __handle_contact(message):
             contact = message.contact
             user_id = message.from_user.id
             first_name = message.from_user.first_name
@@ -69,12 +69,12 @@ class DialogBot:
 
         # Вызов функции events при получении сообщения "События"
         @bot.message_handler(func=lambda message: message.text == "События")
-        def _handle_events_button(message):
-            _events(message)
+        def __handle_events_button(message):
+            __events(message)
 
         # Обработчик команды /events
         @bot.message_handler(commands=['events'])
-        def _events(message):
+        def __events(message):
 
             # Получение информации из events.db
             events_list = self.database.get_events()
@@ -88,10 +88,10 @@ class DialogBot:
                     response += f"Дата: {event[0]}\n"
                     response += f"Место проведения: {event[1]}\n"
                     response += f"Мероприятие: {event[2]}\n\n"
-                bot.send_message(message.chat.id, response, reply_markup=_get_pagination_buttons())
+                bot.send_message(message.chat.id, response, reply_markup=__get_pagination_buttons())
 
         # Получает кнопки пагинации
-        def _get_pagination_buttons():
+        def __get_pagination_buttons():
             markup = types.InlineKeyboardMarkup()
             next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
             prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
@@ -100,14 +100,14 @@ class DialogBot:
 
         # Обработчик нажатия кнопок
         @bot.callback_query_handler(func=lambda call: True)
-        def _handle_button_click(call):
+        def __handle_button_click(call):
             if call.data == 'next':
-                _next_events(call)
+                __next_events(call)
             elif call.data == 'prev':
-                _prev_events(call)
+                __prev_events(call)
                 
         # Обработчик команды /prev
-        def _prev_events(call):
+        def __prev_events(call):
             global current_position
             if current_position == 0:
                 bot.answer_callback_query(callback_query_id=call.id, text="Это первая страница.")
@@ -126,12 +126,12 @@ class DialogBot:
                 response += f"Мероприятие: {event[2]}\n\n"
 
             try:
-                bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=_get_pagination_buttons(), disable_web_page_preview=True)
+                bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=__get_pagination_buttons(), disable_web_page_preview=True)
             except telebot.apihelper.ApiTelegramException as e:
                 print(f"Failed to edit message: {e}")
 
         # Обработчик команды /next
-        def _next_events(call):
+        def __next_events(call):
             global current_position
             current_position += block_size
 
@@ -148,7 +148,7 @@ class DialogBot:
                 response += f"Место проведения: {event[1]}\n"
                 response += f"Мероприятие: {event[2]}\n\n"
 
-            bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=_get_pagination_buttons())
+            bot.edit_message_text(response, call.message.chat.id, call.message.message_id, reply_markup=__get_pagination_buttons())
 
         # Запуск бота
         bot.polling()

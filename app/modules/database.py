@@ -24,6 +24,14 @@ class Database:
             result = cursor.fetchone()
         return result is not None
     
+    # Проверка роли пользователя
+    def get_user_role(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT role FROM users WHERE user_id=?", (user_id,))
+            result = cursor.fetchone()
+        return result[0] if result else None
+    
     # Обновление записил пользователя в БД users
     def update_user(self, user_id, phone_number, first_name, last_name):
         with self.get_database_connection_users() as conn:
@@ -32,10 +40,10 @@ class Database:
             conn.commit()
 
     #Добавление нового пользователя в БД users    
-    def add_user(self, user_id, phone_number, first_name, last_name):
+    def add_user(self, user_id, phone_number, first_name, last_name, user_role):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized) VALUES (?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True))
+            cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized, role) VALUES (?, ?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True, user_role))
             conn.commit()
 
     def get_database_connection_users(self):

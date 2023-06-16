@@ -49,6 +49,18 @@ class Moderation:
             # Сохраняем идентификатор сообщения для последующего удаления
             return message_id
             
+    def handle_button_click(self, call, message_id):
+        admin_id = call.from_user.id
+
+        if call.data == "send_phone":
+            self.bot.send_message(admin_id, "Пользователь назначен модератором")
+            self.bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
+        elif call.data == "cancel":
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+            distribution_button = types.KeyboardButton(text="Создать рассылку")
+            markup.add(distribution_button)
+            self.bot.send_message(admin_id, "Выберите действие:", reply_markup=markup)
+            self.bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
 
     def remove_moderator(self, user_id):
         # Логика снятия модератора с поста

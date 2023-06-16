@@ -24,6 +24,18 @@ class Database:
             result = cursor.fetchone()
         return result is not None
     
+    # Выдача информации по пользователю
+    def search_user(self, phone_number):
+        if self.user_exists(phone_number):
+            with self.get_database_connection_users() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT phone_number, user_id, first_name, last_name, role FROM users WHERE phone_number=?", (phone_number,))
+                result = cursor.fetchone()
+            return result
+        else:
+            result = False
+            return result
+    
     # Проверка роли пользователя
     def get_user_role(self, user_id):
         with self.get_database_connection_users() as conn:
@@ -32,7 +44,7 @@ class Database:
             result = cursor.fetchone()
         return result[0] if result else None
     
-    # Обновление записил пользователя в БД users
+    # Обновление записи пользователя в БД users
     def update_user(self, user_id, phone_number, first_name, last_name):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()

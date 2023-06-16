@@ -27,5 +27,36 @@ class Moderation:
         else:            
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
 
+    def add_moderator(self, user_id):
+        role = self.database.get_user_role(user_id)    
+        
+        if role != "admin":
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+            if role == "moderator":                
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                distribution_button= types.KeyboardButton(text="Создать рассылку")
+                markup.add(distribution_button)
+                self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+        else:
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            send_phone_button = types.InlineKeyboardButton(text="Отправить номер телефона", callback_data="send_phone")
+            cancel_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel")
+            markup.add(send_phone_button, cancel_button)
+            message = self.bot.send_message(user_id, text="Введите номер телефона человека, которого вы хотите назначить модератором", reply_markup=markup)
+            message_id = message.message_id
+
+            # Сохраняем идентификатор сообщения для последующего удаления
+            return message_id
+            
+
+    def remove_moderator(self, user_id):
+        # Логика снятия модератора с поста
+        pass
+
+    def create_distribution(self, user_id):
+        # Логика создания рассылки
+        pass
+
         
         

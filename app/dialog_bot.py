@@ -3,6 +3,7 @@ import telebot
 from .modules.database import Database
 from telebot import types
 from .modules.moderation import Moderation
+from .modules.user_staff import User
 
 block_size = 5
 current_position = 0
@@ -43,7 +44,7 @@ class DialogBot:
             markup.add(contact_button)
             
             self.bot.send_message(message.chat.id, "Для авторизации прошу поделиться вашим номереом телефона", reply_markup=markup)
-
+    
         # Обработчик получения контакта
         @self.bot.message_handler(content_types=['contact'])
         def __handle_contact(message):
@@ -83,13 +84,18 @@ class DialogBot:
                 markup.add(events_button)
                 self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
 
-        # Вызов функции events при получении сообщения "Модерация"
+        # Вызов функции check_moderation при получении сообщения "Модерация"
         @self.bot.message_handler(func=lambda message: message.text == "Модерация")
         def handle_moderation(message):
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
             user_id = message.from_user.id 
             self.moderation.check_moderation(user_id)
 
+        # Вызов функции add_moderator при получении сообщения "Добавить модератора"
+        @self.bot.message_handler(func=lambda message: message.text == "Добавить модератора")
+        def add_moderator(message):
+            user_id = message.from_user.id 
+            self.moderation.add_moderator(user_id)
+    
         # Вызов функции events при получении сообщения "События"
         @self.bot.message_handler(func=lambda message: message.text == "События")
         def __handle_events_button(message):
@@ -130,10 +136,24 @@ class DialogBot:
         # Обработчик нажатия кнопок
         @self.bot.callback_query_handler(func=lambda call: True)
         def __handle_button_click(call):
+            global message_id
             if call.data == 'next':
                 __next_events(call)
             elif call.data == 'prev':
                 __prev_events(call)
+
+            admin_id = call.from_user.id
+            message_id = call.message.message_id
+
+            if call.data == "send_phone":
+                self.bot.send_message(admin_id, "Пользователь назначен модератором")
+                self.bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
+            elif call.data == "cancel":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                distribution_button = types.KeyboardButton(text="Создать рассылку")
+                markup.add(distribution_button)
+                self.bot.send_message(admin_id, "Выберите действие:", reply_markup=markup)
+                self.bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
                 
         # Обработчик команды /prev
         def __prev_events(call):

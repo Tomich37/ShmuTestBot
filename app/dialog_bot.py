@@ -69,6 +69,7 @@ class DialogBot:
                 # Добавляем нового пользователя
                 self.database.add_user(user_id, phone_number, first_name, last_name, user_role="user")
                 self.authorized_user = True
+                user_role = None
 
             # Удаляем кнопку "Поделиться телефоном" из клавиатуры
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)

@@ -1,4 +1,4 @@
 /*.xlsx
 /*.ini
-/db
+app/modules/db/
 __pycache__

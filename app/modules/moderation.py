@@ -43,11 +43,7 @@ class Moderation:
             send_phone_button = types.InlineKeyboardButton(text="Отправить номер телефона", callback_data="send_phone")
             cancel_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel")
             markup.add(send_phone_button, cancel_button)
-            message = self.bot.send_message(user_id, text="Введите номер телефона человека, которого вы хотите назначить модератором", reply_markup=markup)
-            message_id = message.message_id
-
-            # Сохраняем идентификатор сообщения для последующего удаления
-            return message_id
+            self.bot.send_message(user_id, text="Введите номер телефона человека, которого вы хотите назначить модератором", reply_markup=markup)
             
     def handle_button_click(self, call, message_id):
         admin_id = call.from_user.id
@@ -61,6 +57,14 @@ class Moderation:
             markup.add(distribution_button)
             self.bot.send_message(admin_id, "Выберите действие:", reply_markup=markup)
             self.bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
+
+    def process_phone_number(self, message):
+        phone_number = message.text
+        user_exists = self.database.user_exists(phone_number)
+        if user_exists:
+            self.bot.send_message(message.chat.id, "Пользователь существует")
+        else:
+            self.bot.send_message(message.chat.id, "Пользователь не существует")
 
     def remove_moderator(self, user_id):
         # Логика снятия модератора с поста

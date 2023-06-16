@@ -114,6 +114,11 @@ class DialogBot:
             message_id = call.message.message_id
             self.moderation.handle_button_click(call, message_id)
             self.user.handle_button_click(call, message_id)
+        
+        @self.bot.message_handler(func=lambda message: True)
+        def handle_all_messages(message):
+            if message.text.startswith("+7") and len(message.text.split()) == 1 and len(message.text) == 12:
+                self.moderation.process_phone_number(message)
 
         # Запуск бота
         self.bot.polling()

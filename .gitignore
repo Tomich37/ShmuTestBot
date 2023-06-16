@@ -2,3 +2,4 @@
 /*.ini
 app/modules/db/
 __pycache__
+app/modules/db/users.db

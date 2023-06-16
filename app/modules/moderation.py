@@ -35,7 +35,7 @@ class Moderation:
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
             if role == "moderator":                
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-                distribution_button= types.KeyboardButton(text="Создать рассылку")
+                distribution_button = types.KeyboardButton(text="Создать рассылку")
                 markup.add(distribution_button)
                 self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
         else:

@@ -58,7 +58,7 @@ class DialogBot:
             print(user_id, phone_number, first_name, last_name)
 
             # Проверяем, существует ли пользователь в базе данных
-            if self.database.user_exists(phone_number):
+            if self.database.user_exists_phone(phone_number):
                 # Обновляем запись существующего пользователя
                 self.database.update_user(user_id, phone_number, first_name, last_name)
                 self.authorized_user = True
@@ -91,7 +91,7 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text == "Модерация")
         def handle_moderation(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 self.moderation.moderation_buttonn_klick(user_id)
             else:
                 __handle_start(message)
@@ -100,7 +100,7 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text == "Добавить модератора")
         def add_moderator_button(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 self.moderation.add_moderator_button(user_id)
             else:
                 __handle_start(message)
@@ -109,7 +109,7 @@ class DialogBot:
         @self.bot.message_handler(commands=['add_mod'])
         def add_mod(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 phone_number = message.text[len('/add_mod') + 1:]
                 self.moderation.add_moderator(user_id, phone_number)
             else:
@@ -146,7 +146,7 @@ class DialogBot:
         @self.bot.message_handler(commands=['remove_mod'])
         def remove_mod(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 phone_number = message.text[len('/remove_mod') + 1:]
                 self.moderation.remove_moderator(user_id, phone_number)
             else:
@@ -156,7 +156,7 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text == "События")
         def __handle_events_button(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 self.user.events_handler(message)
             else:
                 __handle_start(message)
@@ -165,7 +165,7 @@ class DialogBot:
         @self.bot.message_handler(commands=['events'])
         def __handle_events_command(message):
             user_id = message.from_user.id
-            if self.database.user_exists(user_id):
+            if self.database.user_exists_id(user_id):
                 self.user.events_handler(message)
             else:
                 __handle_start(message)

@@ -65,7 +65,7 @@ class Moderation:
         role = self.database.get_user_role(user_id)
         markup = None
         if role == "admin":
-            user_exists = self.database.user_exists(phone_number)
+            user_exists = self.database.user_exists_phone(phone_number)
             if user_exists:
                 user_info = self.database.user_info(phone_number)
                 # Формируем сообщение с информацией о пользователе
@@ -105,7 +105,7 @@ class Moderation:
         role = self.database.get_user_role(user_id)
         markup = None
         if role == "admin":
-            user_exists = self.database.user_exists(phone_number)
+            user_exists = self.database.user_exists_phone(phone_number)
             if user_exists:
                 user_info = self.database.user_info(phone_number)
                 # Формируем сообщение с информацией о пользователе

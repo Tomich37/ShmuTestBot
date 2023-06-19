@@ -97,6 +97,35 @@ class Database:
     def get_users(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT date, place, event FROM events")
-            events_list = cursor.fetchall()
-        return events_list
+            cursor.execute("SELECT user_id FROM users")
+            all_users = cursor.fetchall()
+        return all_users
+
+    def save_distribution_text(self, text):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO distribution (text) VALUES (?)", (text,))
+            conn.commit()
+
+            # Get the ID of the last inserted row
+            distribution_id = cursor.lastrowid
+
+        return distribution_id
+
+    def send_distribution_text(self, distribution_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT text FROM distribution WHERE id=?", (distribution_id,))
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_latest_distribution_id(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT last_insert_rowid()")
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None

@@ -50,8 +50,10 @@ class Moderation:
 
     # Обработка кнопки "Добавить модератора"
     def add_moderator_button(self, user_id):
-        role = self.database.get_user_role(user_id)        
+        role = self.database.get_user_role(user_id)
+        markup = None         
         if role != "admin":
+            markup = self.user_markup()
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
             if role == "moderator":                
                 markup = self.moder_markup()

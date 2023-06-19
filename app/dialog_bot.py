@@ -4,6 +4,8 @@ from .modules.database import Database
 from telebot import types
 from .modules.moderation import Moderation
 from .modules.user_staff import User
+from .modules.distribution import Distribution
+import uuid
 
 
 class DialogBot:
@@ -18,8 +20,9 @@ class DialogBot:
 
         # Создание экземпляра класса Database
         self.database = Database()
-        self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
+        self.user = User(self.bot, self.database, authorized_user=False)
         self.moderation = Moderation(self.bot)
+        self.distribution = Distribution(self.bot)
 
         # Переменная для отслеживания авторизации user
         self.authorized_user = False
@@ -174,6 +177,64 @@ class DialogBot:
         def handle_button_click(call):
             message_id = call.message.message_id
             self.user.handle_button_click(call, message_id)
+
+        # Вызов функции events при получении сообщения "Создать рассылку"
+        @self.bot.message_handler(func=lambda message: message.text == "Создать рассылку")
+        def handle_distribution_button(message):
+            user_id = message.from_user.id
+            if self.database.user_exists_id(user_id):
+                self.distribution.distribution_button_click(user_id)
+            else:
+                self.__handle_start(message)
+
+        # Обработчик команды /cd
+        @self.bot.message_handler(commands=['cd'])
+        def create_distribution(message):
+            user_id = message.from_user.id
+            if self.database.user_exists_id(user_id):
+                # Get the text message from the user
+                text = message.text.split(' ', 1)[1]
+
+                # Save the distribution text in the database and get the ID
+                distribution_id = self.database.save_distribution_text(text)
+
+                if distribution_id is not None:
+                    # Create a keyboard with "Send" and "Cancel" buttons
+                    keyboard = types.InlineKeyboardMarkup()
+                    send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_{distribution_id}")
+                    cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+                    keyboard.add(send_button, cancel_button)
+
+                    # Send the message with the keyboard to the user
+                    self.bot.send_message(user_id, f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
+                else:
+                    self.bot.send_message(user_id, "Не удалось создать рассылку.")
+            else:
+                self.__handle_start(message)
+
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('send_distribution_'))
+        def send_distribution_callback(call):
+            # Get the distribution ID from callback_data
+            distribution_id = call.data.split('_', 2)[1]
+
+            # Get the distribution text from the database using the ID
+            result = self.database.send_distribution_text(distribution_id)
+
+            if result is not None:
+                text = result
+
+                # Get the list of all users from the database
+                users = self.database.get_users()
+
+                # Send the message to each user
+                for user in users:
+                    user_id = user[0]  # Assuming the user ID is stored in the first column of the table
+                    self.bot.send_message(user_id, text)
+
+                # Send a message to the user who created the distribution
+                self.bot.send_message(call.from_user.id, "Рассылка успешно выполнена.")
+            else:
+                self.bot.send_message(call.from_user.id, "Рассылка не найдена.")
 
         # Запуск бота
         self.bot.polling()

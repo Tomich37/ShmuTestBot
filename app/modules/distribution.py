@@ -9,7 +9,27 @@ class Distribution:
         self.database = Database()
         self.moderation = Moderation(bot)
         self.bot = bot
-        self.bot.callback_query_handler(func=lambda call: True)(self.handle_button_click)
+
+    # Обработчик нажатия кнопки в рассылке
+    def create_distribution(self, message):
+        # Получение текста
+        text = message.text.split(' ', 1)[1]
+        user_id = message.from_user.id
+
+        # Сохранение текста в БД и получение id
+        distribution_id = self.database.save_distribution_text(text)
+
+        if distribution_id is not None:
+            # Создание кнопок "Отрпавить" и "отмена"
+            keyboard = types.InlineKeyboardMarkup()
+            send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_{distribution_id}")
+            cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+            keyboard.add(send_button, cancel_button)
+
+            # Отправка сообщения для подтверждения отправки
+            self.bot.send_message(user_id, f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
+        else:
+            self.bot.send_message(user_id, "Не удалось создать рассылку.")
 
     # Обработка кнопки "Создать рассылку"
     def distribution_button_click(self, user_id):
@@ -19,31 +39,9 @@ class Distribution:
             markup = self.moderation.user_markup()
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
         else:
-            markup = self.moderation.admin_markup()
-            self.bot.send_message(user_id, text="Команда для создания рассылки: /cd \n\n Пример ее использования:\n /cd 'Ваш текст', можно прикреплять файлы", reply_markup=markup)
-
-    def handle_button_click(self, call):
-        user_id = call.from_user.id
-        if call.data.startswith('send_distribution_'):
-            # Get the distribution ID from callback_data
-            distribution_id = call.data.split('_', 2)[2]
-
-            # Get the distribution text from the database using the ID
-            result = self.database.send_distribution_text(distribution_id)
-            if result is not None:
-                text = result
-                # Get the list of all users from the database
-                users = self.database.get_users()
-
-                # Send the message to each user
-                for user in users:
-                    users_id = user[0]  # Assuming the user ID is stored in the first column of the table
-                    self.bot.send_message(users_id, text)
-
-                # Send a message to the user who created the distribution
-                self.bot.send_message(user_id, "Рассылка успешно выполнена.")
+            if role == "admin":
+                markup = self.moderation.admin_markup()
+                self.bot.send_message(user_id, text="Команда для создания рассылки: /cd \n\n Пример ее использования:\n /cd 'Ваш текст', можно прикреплять файлы", reply_markup=markup)
             else:
-                print(result, distribution_id, call.data)
-                self.bot.send_message(user_id, "Рассылка не найдена.")
-        elif call.data == 'cancel_distribution':
-            self.bot.send_message(user_id, "Рассылка отменена.")
+                markup = self.moderation.moder_markup()
+                self.bot.send_message(user_id, text="Команда для создания рассылки: /cd \n\n Пример ее использования:\n /cd 'Ваш текст', можно прикреплять файлы", reply_markup=markup)

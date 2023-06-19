@@ -124,7 +124,7 @@ class Database:
     def get_latest_distribution_id(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT last_insert_rowid()")
+            cursor.execute("SELECT MAX(id) FROM distribution")
             result = cursor.fetchone()
         if result:
             return result[0]

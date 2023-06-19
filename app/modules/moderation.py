@@ -43,7 +43,7 @@ class Moderation:
             self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
         elif role == "moderator":
             markup = self.moder_markup()
-            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+            self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
         else:      
             markup = self.user_markup()     
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

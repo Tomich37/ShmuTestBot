@@ -25,7 +25,7 @@ class Database:
         return result is not None
     
     # Выдача информации по пользователю
-    def search_user(self, phone_number):
+    def user_info(self, phone_number):
         if self.user_exists(phone_number):
             with self.get_database_connection_users() as conn:
                 cursor = conn.cursor()
@@ -56,6 +56,20 @@ class Database:
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized, role) VALUES (?, ?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True, user_role))
+            conn.commit()
+    
+    # Назначение модера
+    def add_moderator(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET role='moderator' WHERE phone_number=?", (phone_number,))
+            conn.commit()
+    
+    # Снятие модера
+    def remove_moderator(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET role='user' WHERE phone_number=?", (phone_number,))
             conn.commit()
 
     def get_database_connection_users(self):

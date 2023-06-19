@@ -91,13 +91,54 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text == "Модерация")
         def handle_moderation(message):
             user_id = message.from_user.id
-            self.moderation.check_moderation(user_id)
+            self.moderation.moderation_buttonn_klick(user_id)
 
         # Вызов функции add_moderator при получении сообщения "Добавить модератора"
         @self.bot.message_handler(func=lambda message: message.text == "Добавить модератора")
-        def add_moderator(message):
+        def add_moderator_button(message):
             user_id = message.from_user.id
-            self.moderation.add_moderator(user_id)
+            self.moderation.add_moderator_button(user_id)
+        
+        # Обработчик команды /add_mod
+        @self.bot.message_handler(commands=['add_mod'])
+        def add_mod(message):
+            user_id = message.from_user.id
+            phone_number = message.text[len('/add_mod') + 1:]
+            self.moderation.add_moderator(user_id, phone_number)
+
+        # Подтверждение добавления/удаления модератора
+        @self.bot.callback_query_handler(func=lambda call: True)
+        def handle_button_click(call):
+            user_id = call.from_user.id
+            markup = None
+            if call.data.startswith('confirm_add_mod_'):
+                phone_number = call.data.split('_')[3]
+                self.database.add_moderator(phone_number)
+                markup = self.moderation.admin_markup()
+                self.bot.send_message(call.message.chat.id, "Модератор добавлен", reply_markup=markup)
+            elif call.data == 'cancel_add_mod':
+                self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+            elif call.data.startswith('confirm_remove_mod_'):
+                phone_number = call.data.split('_')[3]
+                print(phone_number)
+                self.database.remove_moderator(phone_number)
+                markup = self.moderation.admin_markup()
+                self.bot.send_message(call.message.chat.id, "Модератор снят", reply_markup=markup)
+            elif call.data == 'cancel_remove_mod':
+                self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+        
+        # Вызов функции add_moderator при получении сообщения "Снять с поста модератора"
+        @self.bot.message_handler(func=lambda message: message.text == "Снять с поста модератора")
+        def remove_moderator_button(message):
+            user_id = message.from_user.id
+            self.moderation.remove_moderator_button(user_id)
+        
+        # Обработчик команды /remove_mod
+        @self.bot.message_handler(commands=['remove_mod'])
+        def remove_mod(message):
+            user_id = message.from_user.id
+            phone_number = message.text[len('/remove_mod') + 1:]
+            self.moderation.remove_moderator(user_id, phone_number)
 
         # Вызов функции events при получении сообщения "События"
         @self.bot.message_handler(func=lambda message: message.text == "События")
@@ -112,7 +153,6 @@ class DialogBot:
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
             message_id = call.message.message_id
-            self.moderation.handle_button_click(call, message_id)
             self.user.handle_button_click(call, message_id)
         
         @self.bot.message_handler(func=lambda message: True)

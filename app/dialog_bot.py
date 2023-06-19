@@ -91,20 +91,29 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text == "Модерация")
         def handle_moderation(message):
             user_id = message.from_user.id
-            self.moderation.moderation_buttonn_klick(user_id)
+            if self.database.user_exists(user_id):
+                self.moderation.moderation_buttonn_klick(user_id)
+            else:
+                __handle_start(message)
 
         # Вызов функции add_moderator при получении сообщения "Добавить модератора"
         @self.bot.message_handler(func=lambda message: message.text == "Добавить модератора")
         def add_moderator_button(message):
             user_id = message.from_user.id
-            self.moderation.add_moderator_button(user_id)
+            if self.database.user_exists(user_id):
+                self.moderation.add_moderator_button(user_id)
+            else:
+                __handle_start(message)
         
         # Обработчик команды /add_mod
         @self.bot.message_handler(commands=['add_mod'])
         def add_mod(message):
             user_id = message.from_user.id
-            phone_number = message.text[len('/add_mod') + 1:]
-            self.moderation.add_moderator(user_id, phone_number)
+            if self.database.user_exists(user_id):
+                phone_number = message.text[len('/add_mod') + 1:]
+                self.moderation.add_moderator(user_id, phone_number)
+            else:
+                __handle_start(message)
 
         # Подтверждение добавления/удаления модератора
         @self.bot.callback_query_handler(func=lambda call: True)
@@ -137,28 +146,34 @@ class DialogBot:
         @self.bot.message_handler(commands=['remove_mod'])
         def remove_mod(message):
             user_id = message.from_user.id
-            phone_number = message.text[len('/remove_mod') + 1:]
-            self.moderation.remove_moderator(user_id, phone_number)
+            if self.database.user_exists(user_id):
+                phone_number = message.text[len('/remove_mod') + 1:]
+                self.moderation.remove_moderator(user_id, phone_number)
+            else:
+                __handle_start(message)
 
         # Вызов функции events при получении сообщения "События"
         @self.bot.message_handler(func=lambda message: message.text == "События")
         def __handle_events_button(message):
-            self.user.events_handler(message)
+            user_id = message.from_user.id
+            if self.database.user_exists(user_id):
+                self.user.events_handler(message)
+            else:
+                __handle_start(message)
 
         # Обработчик команды /events
         @self.bot.message_handler(commands=['events'])
         def __handle_events_command(message):
-            self.user.events_handler(message)
+            user_id = message.from_user.id
+            if self.database.user_exists(user_id):
+                self.user.events_handler(message)
+            else:
+                __handle_start(message)
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
             message_id = call.message.message_id
             self.user.handle_button_click(call, message_id)
-        
-        @self.bot.message_handler(func=lambda message: True)
-        def handle_all_messages(message):
-            if message.text.startswith("+7") and len(message.text.split()) == 1 and len(message.text) == 12:
-                self.moderation.process_phone_number(message)
 
         # Запуск бота
         self.bot.polling()

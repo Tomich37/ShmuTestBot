@@ -17,14 +17,41 @@ class Database:
         self.phone_number = phone_number
 
     # Проверка на наличие пользователя в БД
-    def user_exists(self, phone_number):
+    def user_exists_phone(self, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT authorized FROM users WHERE phone_number=?", (phone_number,))
             result = cursor.fetchone()
         return result is not None
     
-    # Обновление записил пользователя в БД users
+    def user_exists_id(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT authorized FROM users WHERE user_id=?", (user_id,))
+            result = cursor.fetchone()
+        return result is not None
+    
+    # Выдача информации по пользователю
+    def user_info(self, phone_number):
+        if self.user_exists_phone(phone_number):
+            with self.get_database_connection_users() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT phone_number, user_id, first_name, last_name, role FROM users WHERE phone_number=?", (phone_number,))
+                result = cursor.fetchone()
+            return result
+        else:
+            result = False
+            return result
+    
+    # Проверка роли пользователя
+    def get_user_role(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT role FROM users WHERE user_id=?", (user_id,))
+            result = cursor.fetchone()
+        return result[0] if result else None
+    
+    # Обновление записи пользователя в БД users
     def update_user(self, user_id, phone_number, first_name, last_name):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -32,10 +59,24 @@ class Database:
             conn.commit()
 
     #Добавление нового пользователя в БД users    
-    def add_user(self, user_id, phone_number, first_name, last_name):
+    def add_user(self, user_id, phone_number, first_name, last_name, user_role):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized) VALUES (?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True))
+            cursor.execute("INSERT INTO users (user_id, phone_number, first_name, last_name, authorized, role) VALUES (?, ?, ?, ?, ?, ?)", (user_id, phone_number, first_name, last_name, True, user_role))
+            conn.commit()
+    
+    # Назначение модера
+    def add_moderator(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET role='moderator' WHERE phone_number=?", (phone_number,))
+            conn.commit()
+    
+    # Снятие модера
+    def remove_moderator(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET role='user' WHERE phone_number=?", (phone_number,))
             conn.commit()
 
     def get_database_connection_users(self):

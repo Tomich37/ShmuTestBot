@@ -1,12 +1,15 @@
 from .database import Database
 import configparser
 import telebot
+import openpyxl
+import os
 from telebot import types
 
 class Moderation:
-    def __init__(self, bot):
+    def __init__(self, bot, save_directory):
         self.database = Database()
         self.bot = bot
+        self.save_directory = save_directory
 
     # Меню для разных ролей
     @staticmethod
@@ -15,16 +18,24 @@ class Moderation:
         add_moderator_button = types.KeyboardButton(text="Добавить модератора")
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
+        add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        menu_button= types.KeyboardButton(text="Меню")
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
         markup.add(distribution_button)
+        markup.add(add_users_button)
+        markup.add(menu_button)
         return markup
 
     @staticmethod
     def moder_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="Создать рассылку")
+        add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
+        markup.add(add_users_button)
+        markup.add(menu_button)
         return markup
     
     @staticmethod
@@ -129,5 +140,52 @@ class Moderation:
         else:
             markup = self.user_markup()            
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
-        
-        
+    
+    def add_users(self, message):
+        user_id = message.from_user.id
+        file_id = message.document.file_id
+        file_info = self.bot.get_file(file_id)
+        file_name = file_info.file_path.split('/')[-1] 
+        downloaded_file = self.bot.download_file(file_info.file_path)
+        file_path = os.path.join(self.save_directory, file_name)
+        role = self.database.get_user_role(user_id)
+        markup = None
+        if role == "admin":
+            with open(file_path, 'wb') as file:
+                file.write(downloaded_file)
+            
+            workbook = openpyxl.load_workbook(file_path)
+            sheet = workbook.active
+
+            max_column = sheet.max_column
+
+            column_mapping = {
+                'phone_number': None,
+                'first_name': None,
+                'last_name': None,
+                'region': None,
+                'events': None
+            }
+
+            for column in range(1, max_column + 1):
+                cell_value = sheet.cell(row=1, column=column).value
+                if cell_value in column_mapping:
+                    column_mapping[cell_value] = column
+
+            for row in range(2, sheet.max_row + 1):
+                phone_number = sheet.cell(row=row, column=column_mapping['phone_number']).value
+                first_name = sheet.cell(row=row, column=column_mapping['first_name']).value
+                last_name = sheet.cell(row=row, column=column_mapping['last_name']).value
+                region = sheet.cell(row=row, column=column_mapping['region']).value
+                events = None
+
+                if column_mapping['events'] is not None:
+                    events = sheet.cell(row=row, column=column_mapping['events']).value
+
+                self.database.insert_user(phone_number, first_name, last_name, region, events)
+
+            self.bot.send_message(user_id, "Пользователи добавлены")
+            self.database.clear_pending_command(user_id)
+        else:
+            markup = self.user_markup()            
+            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

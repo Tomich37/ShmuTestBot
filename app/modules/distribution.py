@@ -8,7 +8,7 @@ from telebot import types
 class Distribution:
     def __init__(self, bot, save_directory):
         self.database = Database()
-        self.moderation = Moderation(bot)
+        self.moderation = Moderation(bot, save_directory)
         self.bot = bot
         self.save_directory = save_directory
 

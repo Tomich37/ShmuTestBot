@@ -176,3 +176,10 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("UPDATE users SET authorized = ? WHERE user_id = ?", (authorized, user_id))
             conn.commit()
+
+    def insert_user(self, phone_number, first_name, last_name, region, events):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (phone_number, first_name, last_name, region, events, authorized) VALUES (?, ?, ?, ?, ?, ?)",
+                                (phone_number, first_name, last_name, region, events, 0))
+            conn.commit()

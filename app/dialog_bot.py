@@ -22,11 +22,25 @@ class DialogBot:
         # Создание экземпляра класса Database
         self.database = Database()
         self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
-        self.moderation = Moderation(self.bot)
+        self.moderation = Moderation(self.bot, self.save_directory)
         self.distribution = Distribution(self.bot, self.save_directory)
 
         # Переменная для отслеживания авторизации user
         self.authorized_user = False
+
+    @staticmethod
+    def admin_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        add_moderator_button = types.KeyboardButton(text="Модерация")
+        markup.add(add_moderator_button)
+        return markup
+
+    @staticmethod
+    def user_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        distribution_button= types.KeyboardButton(text="События")
+        markup.add(distribution_button)
+        return markup
 
     def run(self):
         # Показывает меню с кнопками
@@ -97,6 +111,34 @@ class DialogBot:
             user_id = message.from_user.id
             if self.database.user_exists_id(user_id):
                 self.moderation.moderation_buttonn_klick(user_id)
+            else:
+                __handle_start(message)
+
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'добавить пользователей')
+        def handle_add_users(message):
+            user_id = message.from_user.id
+            user_role = user_role = self.database.get_user_role(user_id)
+            if self.database.user_exists_id(user_id):
+                if user_role != 'user':
+                    self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
+                    self.bot.send_message(message.chat.id, "Загрузите exel файл")
+                else:  
+                    markup = self.user_markup()
+                    self.bot.send_message(user_id, "Недостаточно прав", reply_markup=markup)
+            else:
+                __handle_start(message)
+
+        @self.bot.message_handler(func=lambda message: message.text == "Меню")
+        def handle_menu(message):
+            user_id = message.from_user.id
+            user_role = user_role = self.database.get_user_role(user_id)
+            if self.database.user_exists_id(user_id):
+                if user_role != 'user':
+                    markup = self.admin_markup()
+                    self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+                else:  
+                    markup = self.user_markup()
+                    self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
             else:
                 __handle_start(message)
 
@@ -228,11 +270,8 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
         def start_distribution(message):
             user_id = message.from_user.id
-            if not self.database.get_pending_command(user_id):
-                self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
-                self.bot.send_message(message.chat.id, "Введите текст рассылки:")
-            else:
-                self.bot.send_message(message.chat.id, "Текст рассылки уже был запрошен.")
+            self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
+            self.bot.send_message(message.chat.id, "Введите текст рассылки:")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
@@ -254,6 +293,8 @@ class DialogBot:
             user_id = message.from_user.id
             if self.database.get_pending_command(user_id) == '/cd':
                 self.distribution.create_distribution_with_file(message)
+            elif self.database.get_pending_command(user_id) == '/add_users':
+                self.moderation.add_users(message)
 
 
         # Запуск бота

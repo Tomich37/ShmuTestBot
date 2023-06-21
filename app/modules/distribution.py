@@ -46,6 +46,7 @@ class Distribution:
     def process_distribution_photo(self, message):
         user_id = message.from_user.id
         user_role = self.database.get_user_role(user_id)
+        distribution_id = None  # Инициализация переменной distribution_id
         if message.caption is not None:
             text = message.caption
             photo_id = message.photo[-1].file_id
@@ -84,31 +85,34 @@ class Distribution:
             self.bot.send_message(user_id, "Не удалось создать рассылку.")
         # Очистка команды ожидания после завершения рассылки
         self.database.clear_pending_command(user_id)
-        
+
     # Обработка рассылки если есть вложение типа document
     def create_distribution_with_file(self, message):
         user_id = message.from_user.id
         role = self.database.get_user_role(user_id)
-        if message.caption.startswith('/cd'):
-            if role != 'user':
-                file_name = message.document.file_name
-                file_id = message.document.file_id
-                file_info = self.bot.get_file(file_id)
-                downloaded_file = self.bot.download_file(file_info.file_path)
-                save_path = os.path.join(self.save_directory, file_name)
-                file_extension = os.path.splitext(file_name)[1]
-                text = message.caption.split(' ', 1)[1]
+        if role != 'user':
+            file_name = message.document.file_name
+            file_id = message.document.file_id
+            file_info = self.bot.get_file(file_id)
+            downloaded_file = self.bot.download_file(file_info.file_path)
+            save_path = os.path.join(self.save_directory, file_name)
+            file_extension = os.path.splitext(file_name)[1]
+            text = message.caption.split(' ', 1)[1]
 
-                # Сохранение текста в БД и получение id
-                distribution_id = self.database.save_distribution_text(text)
+            # Сохранение текста в БД и получение id
+            distribution_id = self.database.save_distribution_text(text)
 
-                with open(save_path, 'wb') as file:
-                    file.write(downloaded_file)
-                
-                print(file_extension)
-                self.bot.send_message(message.chat.id, "Файл сохранен успешно.")
-            else:
-                markup = self.moderation.user_markup()
-                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+            # Создание кнопок "Отправить" и "отмена"              
+            keyboard = types.InlineKeyboardMarkup()
+            send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_photo_{distribution_id}")
+            cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+            keyboard.add(send_button, cancel_button)
+
+            with open(save_path, 'wb') as file:
+                file.write(downloaded_file)
+            
+            print(file_extension)
+            self.bot.send_message(message.chat.id, "Файл сохранен успешно.")
         else:
-            self.bot.send_message(message.chat.id, "Прикрепите файл к команде /cd.")
+            markup = self.moderation.user_markup()
+            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

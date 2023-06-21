@@ -225,14 +225,6 @@ class DialogBot:
             message_id = call.message.message_id
             self.user.handle_button_click(call, message_id)
 
-        # @self.bot.message_handler(content_types=['document'])
-        # def save_file(message):
-        #     user_id = message.from_user.id
-        #     if self.database.user_exists_id(user_id):
-        #         self.distribution.create_distribution_with_file(message)
-        #     else:
-        #         __handle_start(message)
-
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
         def start_distribution(message):
             user_id = message.from_user.id
@@ -257,7 +249,15 @@ class DialogBot:
             if self.database.get_pending_command(user_id) == '/cd':
                 self.distribution.process_distribution_photo(message)
             else:
-                __handle_start(message)
+                pass
+        
+        @self.bot.message_handler(content_types=['document'])
+        def save_file(message):
+            user_id = message.from_user.id
+            if self.database.get_pending_command(user_id) == '/cd':
+                self.distribution.create_distribution_with_file(message)
+            else:
+                pass
 
 
         # Запуск бота

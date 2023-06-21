@@ -1,5 +1,6 @@
 import configparser
 import telebot
+import time
 from .modules.database import Database
 from telebot import types
 from .modules.moderation import Moderation
@@ -16,12 +17,13 @@ class DialogBot:
         # Получение значения токена из файла конфигурации
         self.token = config.get('default', 'token')
         self.bot = telebot.TeleBot(self.token)
+        self.save_directory = config.get('default', 'save_directory')
 
         # Создание экземпляра класса Database
         self.database = Database()
         self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
         self.moderation = Moderation(self.bot)
-        self.distribution = Distribution(self.bot)
+        self.distribution = Distribution(self.bot, self.save_directory)
 
         # Переменная для отслеживания авторизации user
         self.authorized_user = False
@@ -137,21 +139,53 @@ class DialogBot:
                 self.bot.send_message(call.message.chat.id, "Модератор снят", reply_markup=markup)
             elif call.data == 'cancel_remove_mod':
                 self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+            elif call.data.startswith('send_distribution_photo_'):
+                distribution_id = self.database.get_latest_distribution_id()
+                text = self.database.send_distribution_text(distribution_id)
+                file_paths = self.database.get_distribution_file_paths(distribution_id)
+                if file_paths:
+                    file_path = file_paths[0]  # Получаем первый и единственный файл из списка
+                    authorized_users = self.database.get_users()  # Получаем только авторизованных пользователей
+                    for user in authorized_users:
+                        user_id = user[0]
+                        with open(file_path, 'rb') as photo:
+                            print(user_id, photo, text)
+                            try:
+                                message = self.bot.send_photo(user_id, photo, caption=text)
+                                time.sleep(0.5)
+                            except telebot.apihelper.ApiTelegramException as e:
+                                if e.result.status_code == 403:
+                                    # Пользователь заблокировал бота
+                                    self.database.update_user_authorized(user_id, 0)
+                                    print(f"Пользователь с ID {user_id} заблокировал бота")
+                                    continue  # Продолжаем рассылку следующему пользователю
+                                else:
+                                    print(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
+                                    continue  # Продолжаем рассылку следующему пользователю
+                else:
+                    print("Фотография не найдена.")
             elif call.data.startswith('send_distribution_'):
                 distribution_id = self.database.get_latest_distribution_id()
                 text = self.database.send_distribution_text(distribution_id)
-                print(distribution_id, text)
-                if text:
-                    users = self.database.get_users()
-                    for user in users:
-                        user_id = user[0]
-                        self.bot.send_message(user_id, text)
-                    print("Рассылка произведена")
-                else:
-                    print("Рассылка не удалась: текст не найден.")
+                authorized_users = self.database.get_users()  # Получаем только авторизованных пользователей
+                for user in authorized_users:
+                    user_id = user[0]
+                    try:
+                        message = self.bot.send_message(user_id, text)
+                        time.sleep(0.5)
+                    except telebot.apihelper.ApiTelegramException as e:
+                        if e.result.status_code == 403:
+                            # Пользователь заблокировал бота
+                            self.database.update_user_authorized(user_id, 0)
+                            print(f"Пользователь с ID {user_id} заблокировал бота")
+                            continue  # Продолжаем рассылку следующему пользователю
+                        else:
+                            print(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
+                            continue  # Продолжаем рассылку следующему пользователю
+                    
             elif call.data == 'cancel_distribution':
-                print("Рассылка отменена")
-        
+                self.bot.send_message(call.message.chat.id, "Рассылка отменена", reply_markup=markup)
+
         # Вызов функции add_moderator при получении сообщения "Снять с поста модератора"
         @self.bot.message_handler(func=lambda message: message.text == "Снять с поста модератора")
         def remove_moderator_button(message):
@@ -191,23 +225,40 @@ class DialogBot:
             message_id = call.message.message_id
             self.user.handle_button_click(call, message_id)
 
-        # Вызов функции events при получении сообщения "Создать рассылку"
-        @self.bot.message_handler(func=lambda message: message.text == "Создать рассылку")
-        def handle_distribution_button(message):
-            user_id = message.from_user.id
-            if self.database.user_exists_id(user_id):
-                self.distribution.distribution_button_click(user_id)
-            else:
-                self.__handle_start(message)
+        # @self.bot.message_handler(content_types=['document'])
+        # def save_file(message):
+        #     user_id = message.from_user.id
+        #     if self.database.user_exists_id(user_id):
+        #         self.distribution.create_distribution_with_file(message)
+        #     else:
+        #         __handle_start(message)
 
-        # Обработчик команды /cd
-        @self.bot.message_handler(commands=['cd'])
-        def create_distribution(message):
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
+        def start_distribution(message):
+            user_id = message.from_user.id
+            if not self.database.get_pending_command(user_id):
+                self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
+                self.bot.send_message(message.chat.id, "Введите текст рассылки:")
+            else:
+                self.bot.send_message(message.chat.id, "Текст рассылки уже был запрошен.")
+
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
+        def process_distribution_text(message):
             user_id = message.from_user.id
             if self.database.user_exists_id(user_id):
-                self.distribution.create_distribution(message)
+                text = message.text
+                self.distribution.create_distribution_text(user_id, text)
             else:
-                self.__handle_start(message)
+                __handle_start(message)
+
+        @self.bot.message_handler(content_types=['photo'])
+        def handle_photo(message):
+            user_id = message.from_user.id
+            if self.database.get_pending_command(user_id) == '/cd':
+                self.distribution.process_distribution_photo(message)
+            else:
+                __handle_start(message)
+
 
         # Запуск бота
         self.bot.polling()

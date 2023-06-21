@@ -45,7 +45,7 @@ class User:
         markup.row(prev_button, next_button)
         return markup
 
-    def handle_button_click(self, call, message_id):
+    def handle_button_click(self, call):
         if call.data == "next":
             self.next_events(call)
         elif call.data == "prev":

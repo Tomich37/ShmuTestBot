@@ -1,51 +1,114 @@
 from .database import Database
 from .moderation import Moderation
+import os
 import configparser
 import telebot
 from telebot import types
 
 class Distribution:
-    def __init__(self, bot):
+    def __init__(self, bot, save_directory):
         self.database = Database()
         self.moderation = Moderation(bot)
         self.bot = bot
+        self.save_directory = save_directory
 
-    # Обработчик нажатия кнопки в рассылке
-    def create_distribution(self, message):
-        # Получение текста
-        text = message.text.split(' ', 1)[1]
-        user_id = message.from_user.id
+    # Извлечение текста из БД
+    def get_distribution_text(self):
+        self.distribution_id = self.database.get_latest_distribution_id()
+        text = self.database.send_distribution_text(self.distribution_id)
+        return text
+
+    # Обработчик текстовой рассылки
+    def create_distribution_text(self, user_id, text):
         user_role = self.database.get_user_role(user_id)
 
-        # Сохранение текста в БД и получение id
+        # Отправка рассылки
         distribution_id = self.database.save_distribution_text(text)
-        if user_role == 'user':
-            markup = self.moderation.user_markup()
-            self.bot.send_message(user_id, "У вас недостаточно прав.", reply_markup=markup)
-        else:
-            if distribution_id is not None:
-                # Создание кнопок "Отрпавить" и "отмена"
+        if distribution_id is not None:
+            if user_role == 'user':
+                markup = self.moderation.user_markup()
+                self.bot.send_message(user_id, "У вас недостаточно прав.", reply_markup=markup)
+            else:
+                # Создание кнопок "Отправить" и "отмена"              
                 keyboard = types.InlineKeyboardMarkup()
                 send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_{distribution_id}")
                 cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
                 keyboard.add(send_button, cancel_button)
 
-                # Отправка сообщения для подтверждения отправки
-                self.bot.send_message(user_id, f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
-            else:
-                self.bot.send_message(user_id, "Не удалось создать рассылку.")
-
-    # Обработка кнопки "Создать рассылку"
-    def distribution_button_click(self, user_id):
-        role = self.database.get_user_role(user_id)
-        markup = None
-        if role == "user":
-            markup = self.moderation.user_markup()
-            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+                self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)                
         else:
-            if role == "admin":
-                markup = self.moderation.admin_markup()
-                self.bot.send_message(user_id, text="Команда для создания рассылки: /cd \n\n Пример ее использования:\n /cd 'Ваш текст', можно прикреплять файлы", reply_markup=markup)
+            self.bot.send_message(user_id, "Не удалось создать рассылку.")
+
+        # Очистка команды ожидания после завершения рассылки
+        self.database.clear_pending_command(user_id)        
+
+    # Обработчик рассылки с фото
+    def process_distribution_photo(self, message):
+        user_id = message.from_user.id
+        user_role = self.database.get_user_role(user_id)
+        if message.caption is not None:
+            text = message.caption
+            photo_id = message.photo[-1].file_id
+
+            # Получение информации о фотографии
+            file_info = self.bot.get_file(photo_id)
+            file_name = file_info.file_path.split('/')[-1]  # Извлекаем имя файла из пути
+            downloaded_file = self.bot.download_file(file_info.file_path)
+            file_path = os.path.join(self.save_directory, file_name)
+
+            with open(file_path, 'wb') as file:
+                file.write(downloaded_file)
+            
+            distribution_id = self.database.save_distribution_text(text)
+        else:
+            print('добавлено больше 1 фото')
+
+        # Отправка рассылки
+        if distribution_id is not None:
+            if user_role == 'user':
+                markup = self.moderation.user_markup()
+                self.bot.send_message(user_id, "У вас недостаточно прав.", reply_markup=markup)
             else:
-                markup = self.moderation.moder_markup()
-                self.bot.send_message(user_id, text="Команда для создания рассылки: /cd \n\n Пример ее использования:\n /cd 'Ваш текст', можно прикреплять файлы", reply_markup=markup)
+                # Создание кнопок "Отправить" и "отмена"              
+                keyboard = types.InlineKeyboardMarkup()
+                send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_photo_{distribution_id}")
+                cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+                keyboard.add(send_button, cancel_button)
+
+                # Сохранение файла в базе данных
+                self.database.save_distribution_file_path(distribution_id, file_path)
+
+                # Отправка медиагруппы с текстом и фотографиями
+                self.bot.send_photo(user_id, photo = open(file_path, 'rb'), caption=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
+        else:
+            self.bot.send_message(user_id, "Не удалось создать рассылку.")
+        # Очистка команды ожидания после завершения рассылки
+        self.database.clear_pending_command(user_id)
+        
+    # Обработка рассылки если есть вложение типа document
+    def create_distribution_with_file(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        if message.caption.startswith('/cd'):
+            if role != 'user':
+                file_name = message.document.file_name
+                file_id = message.document.file_id
+                file_info = self.bot.get_file(file_id)
+                downloaded_file = self.bot.download_file(file_info.file_path)
+                save_path = os.path.join(self.save_directory, file_name)
+                file_extension = os.path.splitext(file_name)[1]
+                text = message.caption.split(' ', 1)[1]
+
+                # Сохранение текста в БД и получение id
+                distribution_id = self.database.save_distribution_text(text)
+
+                with open(save_path, 'wb') as file:
+                    file.write(downloaded_file)
+                
+                print(file_extension)
+                self.bot.send_message(message.chat.id, "Файл сохранен успешно.")
+            else:
+                markup = self.moderation.user_markup()
+                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+        else:
+            self.bot.send_message(message.chat.id, "Прикрепите файл к команде /cd.")

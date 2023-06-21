@@ -97,7 +97,7 @@ class Database:
     def get_users(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT user_id FROM users")
+            cursor.execute("SELECT user_id FROM users WHERE authorized = 1")
             all_users = cursor.fetchall()
         return all_users
 
@@ -107,11 +107,12 @@ class Database:
             cursor.execute("INSERT INTO distribution (text) VALUES (?)", (text,))
             conn.commit()
 
-            # Get the ID of the last inserted row
+            # Получение идентификатора рассылки
             distribution_id = cursor.lastrowid
 
         return distribution_id
 
+    # Получение текста рассылки
     def send_distribution_text(self, distribution_id):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -121,6 +122,7 @@ class Database:
             return result[0]
         return None
 
+    # id последней рассылки
     def get_latest_distribution_id(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -129,3 +131,48 @@ class Database:
         if result:
             return result[0]
         return None
+
+    # Сохранение пути файла для рассылки    
+    def save_distribution_file_path(self, distribution_id, file_path):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO distibution_files (distribution_id, file_path) VALUES (?, ?)", (distribution_id, file_path))
+            conn.commit()
+
+    # Создание команды        
+    def set_pending_command(self, user_id, command):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO user_pending_commands (user_id, command) VALUES (?, ?)", (user_id, command))
+            conn.commit()
+
+    # Взятие команды
+    def get_pending_command(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT command FROM user_pending_commands WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    # Очистка команды
+    def clear_pending_command(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM user_pending_commands WHERE user_id = ?", (user_id,))
+            conn.commit()
+
+    # Изъятие пути
+    def get_distribution_file_paths(self, distribution_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT file_path FROM distibution_files WHERE distribution_id = ?", (distribution_id,))
+            results = cursor.fetchall()
+        return [result[0] for result in results]
+    
+    def update_user_authorized(self, user_id, authorized):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET authorized = ? WHERE user_id = ?", (authorized, user_id))
+            conn.commit()

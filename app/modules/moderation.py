@@ -129,10 +129,5 @@ class Moderation:
         else:
             markup = self.user_markup()            
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
-
-    def create_distribution(self, user_id):
-        # Логика создания рассылки
-        pass
-
         
         

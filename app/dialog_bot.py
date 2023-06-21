@@ -248,16 +248,12 @@ class DialogBot:
             user_id = message.from_user.id
             if self.database.get_pending_command(user_id) == '/cd':
                 self.distribution.process_distribution_photo(message)
-            else:
-                pass
         
         @self.bot.message_handler(content_types=['document'])
         def save_file(message):
             user_id = message.from_user.id
             if self.database.get_pending_command(user_id) == '/cd':
                 self.distribution.create_distribution_with_file(message)
-            else:
-                pass
 
 
         # Запуск бота

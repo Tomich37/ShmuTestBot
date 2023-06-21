@@ -91,28 +91,44 @@ class Distribution:
         user_id = message.from_user.id
         role = self.database.get_user_role(user_id)
         if role != 'user':
-            file_name = message.document.file_name
-            file_id = message.document.file_id
-            file_info = self.bot.get_file(file_id)
-            downloaded_file = self.bot.download_file(file_info.file_path)
-            save_path = os.path.join(self.save_directory, file_name)
-            file_extension = os.path.splitext(file_name)[1]
-            text = message.caption.split(' ', 1)[1]
+            text = message.caption
 
             # Сохранение текста в БД и получение id
             distribution_id = self.database.save_distribution_text(text)
 
             # Создание кнопок "Отправить" и "отмена"              
             keyboard = types.InlineKeyboardMarkup()
-            send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_photo_{distribution_id}")
+            send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_docs_{distribution_id}")
             cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
             keyboard.add(send_button, cancel_button)
 
-            with open(save_path, 'wb') as file:
-                file.write(downloaded_file)
-            
-            print(file_extension)
-            self.bot.send_message(message.chat.id, "Файл сохранен успешно.")
+            if message.document:
+                file = message.document
+                file_name = file.file_name
+                file_id = file.file_id
+                file_info = self.bot.get_file(file_id)
+                downloaded_file = self.bot.download_file(file_info.file_path)
+                save_path = os.path.join(self.save_directory, file_name)
+                file_extension = os.path.splitext(file_name)[1]
+
+                # Определение пути к файлу
+                file_path = os.path.join(self.save_directory, file_name)
+
+                with open(save_path, 'wb') as file:
+                    file.write(downloaded_file)
+
+                # Сохранение пути к файлу в БД
+                self.database.save_distribution_file_path(distribution_id, file_path)
+
+                print(file_extension, text)
+                self.bot.send_message(user_id, text)
+                self.bot.send_document(message.chat.id, open(file_path, 'rb'))
+                self.bot.send_message(user_id, "Сделать рассылку?", reply_markup=keyboard)
+
+                # Очистка команды ожидания после завершения рассылки
+                self.database.clear_pending_command(user_id)
         else:
             markup = self.moderation.user_markup()
+            # Очистка команды ожидания после завершения рассылки
+            self.database.clear_pending_command(user_id)
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

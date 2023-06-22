@@ -13,6 +13,7 @@ class DialogBot:
         # Чтение файла конфигурации
         config = configparser.ConfigParser()
         config.read('./config.ini')
+        self.i = 0
 
         # Получение значения токена из файла конфигурации
         self.token = config.get('default', 'token')
@@ -23,7 +24,7 @@ class DialogBot:
         self.database = Database()
         self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
         self.moderation = Moderation(self.bot, self.save_directory)
-        self.distribution = Distribution(self.bot, self.save_directory)
+        self.distribution = Distribution(self.bot, self.save_directory, self.i)
 
         # Переменная для отслеживания авторизации user
         self.authorized_user = False
@@ -223,10 +224,10 @@ class DialogBot:
                             continue  # Продолжаем рассылку следующему пользователю
                         else:
                             print(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
-                            continue  # Продолжаем рассылку следующему пользователю
-                    
+                            continue  # Продолжаем рассылку следующему пользователю                
             elif call.data == 'cancel_distribution':
-                self.bot.send_message(call.message.chat.id, "Рассылка отменена", reply_markup=markup)
+                self.bot.send_message(call.message.chat.id, "Рассылка отменена", reply_markup=markup)                
+                self.database.clear_pending_command(user_id)
 
         # Вызов функции add_moderator при получении сообщения "Снять с поста модератора"
         @self.bot.message_handler(func=lambda message: message.text == "Снять с поста модератора")
@@ -270,17 +271,23 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
         def start_distribution(message):
             user_id = message.from_user.id
+            text = "Документы:"
+            distribution_id = self.database.save_distribution_text(text)
             self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
             self.bot.send_message(message.chat.id, "Введите текст рассылки:")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
             user_id = message.from_user.id
-            if self.database.user_exists_id(user_id):
-                text = message.text
-                self.distribution.create_distribution_text(user_id, text)
+            if message.text != "Завершить загрузку":
+                if self.database.user_exists_id(user_id):
+                    text = message.text
+                    self.distribution.create_distribution_text(user_id, text)
+                else:
+                    __handle_start(message)
             else:
-                __handle_start(message)
+                self.database.clear_pending_command(message.from_user.id)
+                start_distribution(message)
 
         @self.bot.message_handler(content_types=['photo'])
         def handle_photo(message):
@@ -291,10 +298,48 @@ class DialogBot:
         @self.bot.message_handler(content_types=['document'])
         def save_file(message):
             user_id = message.from_user.id
-            if self.database.get_pending_command(user_id) == '/cd':
-                self.distribution.create_distribution_with_file(message)
+            if self.database.get_pending_command(user_id) == '/cd':               
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                end_download_distribution_button = types.KeyboardButton(text="Завершить загрузку")
+                markup.add(end_download_distribution_button)
+                self.bot.send_message(message.chat.id, "Загружен файл:", reply_markup=markup) 
+                self.distribution.create_distribution_with_file(message)  
             elif self.database.get_pending_command(user_id) == '/add_users':
                 self.moderation.add_users(message)
+
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить загрузку')
+        def start_distribution(message):
+            user_id = message.from_user.id            
+            role = self.database.get_user_role(user_id) 
+            if role != "user":      
+                distribution_id = self.database.get_latest_distribution_id()   
+                file_paths = self.database.get_distribution_file_paths(distribution_id)
+                authorized_users = self.database.get_users()  # Получаем только авторизованных пользователей
+                for user in authorized_users:
+                    userd_id = user[0]
+                    try:
+                        self.bot.send_message(userd_id, "Документы:")
+                        for file_path in file_paths:
+                            with open(file_path, 'rb') as file:
+                                self.bot.send_document(userd_id, file)
+                        time.sleep(0.5)
+                    except telebot.apihelper.ApiTelegramException as e:
+                        if e.result.status_code == 403:
+                            # Пользователь заблокировал бота
+                            self.database.update_user_authorized(user_id, 0)
+                            print(f"Пользователь с ID {user_id} заблокировал бота")
+                            continue  # Продолжаем рассылку следующему пользователю
+                        else:
+                            print(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
+                            continue  # Продолжаем рассылку следующему пользователю
+                markup = self.moderation.admin_markup()
+                self.distribution.clear_file_paths()
+                self.bot.send_message(message.chat.id, "Рассылка выполнена", reply_markup=markup)
+            else:
+                markup = self.moderation.user_markup()
+                # Очистка команды ожидания после завершения рассылки
+                self.database.clear_pending_command(user_id)
+                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
 
 
         # Запуск бота

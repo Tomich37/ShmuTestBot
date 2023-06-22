@@ -131,6 +131,17 @@ class Database:
         if result:
             return result[0]
         return None
+    
+    # удаление последней рассылки
+    def delete_latest_distribution(self):
+        latest_id = self.get_latest_distribution_id()
+        if latest_id is not None:
+            with self.get_database_connection_users() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM distribution WHERE id = ?", (latest_id,))
+                conn.commit()
+            return True
+        return False
 
     # Сохранение пути файла для рассылки    
     def save_distribution_file_path(self, distribution_id, file_path):

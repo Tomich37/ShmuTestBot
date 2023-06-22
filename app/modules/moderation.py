@@ -19,10 +19,12 @@ class Moderation:
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        add_data_button= types.KeyboardButton(text="Загрузить материалы")
         menu_button= types.KeyboardButton(text="Меню")
+        markup.add(distribution_button)
+        markup.add(add_data_button)
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
-        markup.add(distribution_button)
         markup.add(add_users_button)
         markup.add(menu_button)
         return markup
@@ -31,9 +33,11 @@ class Moderation:
     def moder_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="Создать рассылку")
+        add_data_button= types.KeyboardButton(text="Загрузить материалы")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
+        markup.add(add_data_button)
         markup.add(add_users_button)
         markup.add(menu_button)
         return markup

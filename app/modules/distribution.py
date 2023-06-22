@@ -13,7 +13,6 @@ class Distribution:
         self.bot = bot
         self.save_directory = save_directory
         self.file_paths = []
-        self.i = i
         
 
     # Извлечение текста из БД
@@ -120,8 +119,6 @@ class Distribution:
             
             
             self.bot.send_document(user_id, open(file_path, 'rb'))
-            print(self.i, len(self.file_paths), distribution_id)            
-            self.i += 1            
         else:
             markup = self.moderation.user_markup()
             # Очистка команды ожидания после завершения рассылки

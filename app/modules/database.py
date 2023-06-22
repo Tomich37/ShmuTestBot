@@ -76,8 +76,26 @@ class Database:
     def remove_moderator(self, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET role='user' WHERE phone_number=?", (phone_number,))
-            conn.commit()
+            cursor.execute("SELECT role FROM users WHERE phone_number=?", (phone_number,))
+            result = cursor.fetchone()
+            if result and result[0] == 'admin':
+                # Пользователь имеет роль 'admin', нельзя изменить на 'user'
+                return False
+            else:
+                cursor.execute("UPDATE users SET role='user' WHERE phone_number=?", (phone_number,))
+                conn.commit()
+                return True
+
+    # Проверка на андмина        
+    def check_admin_role(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT role FROM users WHERE phone_number=?", (phone_number,))
+            result = cursor.fetchone()
+            if result and result[0] == 'admin':
+                return True
+            else:
+                return False
 
     def get_database_connection_users(self):
         conn = sqlite3.connect(self.db_path_users)
@@ -188,9 +206,9 @@ class Database:
             cursor.execute("UPDATE users SET authorized = ? WHERE user_id = ?", (authorized, user_id))
             conn.commit()
 
-    def insert_user(self, phone_number, first_name, last_name, region, events):
+    def insert_user(self, phone_number, first_name, last_name, region, events, user_group):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (phone_number, first_name, last_name, region, events, authorized) VALUES (?, ?, ?, ?, ?, ?)",
-                                (phone_number, first_name, last_name, region, events, 0))
+            cursor.execute("INSERT OR IGNORE INTO users (phone_number, first_name, last_name, region, events, user_group, authorized) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (phone_number, first_name, last_name, region, events, user_group, 0))
             conn.commit()

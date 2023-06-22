@@ -122,7 +122,7 @@ class DialogBot:
             if self.database.user_exists_id(user_id):
                 if user_role != 'user':
                     self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
-                    self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - фамилия\nlast_name - имя\nregion - регион")
+                    self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - имя\nlast_name - фамилия\nregion - регион\nuser_group - группа пользователей (Базовая, продвинутая, блогеры)")
                 else:  
                     markup = self.user_markup()
                     self.bot.send_message(user_id, "Недостаточно прав", reply_markup=markup)

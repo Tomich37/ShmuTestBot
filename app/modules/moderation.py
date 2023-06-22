@@ -84,18 +84,21 @@ class Moderation:
         if role == "admin":
             user_exists = self.database.user_exists_phone(phone_number)
             if user_exists:
-                user_info = self.database.user_info(phone_number)
-                # Формируем сообщение с информацией о пользователе
-                user_message = f"Имя: {user_info[2]}\nФамилия: {user_info[3]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[4]}"
+                if self.database.check_admin_role is False:
+                    user_info = self.database.user_info(phone_number)
+                    # Формируем сообщение с информацией о пользователе
+                    user_message = f"Имя: {user_info[2]}\nФамилия: {user_info[3]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[4]}"
 
-                # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
-                keyboard = types.InlineKeyboardMarkup()
-                confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_add_mod_{phone_number}")
-                cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_add_mod")
-                keyboard.add(confirm_add_mod_button, cancel_add_mod_button)
+                    # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
+                    keyboard = types.InlineKeyboardMarkup()
+                    confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_add_mod_{phone_number}")
+                    cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_add_mod")
+                    keyboard.add(confirm_add_mod_button, cancel_add_mod_button)
 
-                # Отправляем сообщение с клавиатурой
-                self.bot.send_message(user_id, user_message, reply_markup=keyboard)
+                    # Отправляем сообщение с клавиатурой
+                    self.bot.send_message(user_id, user_message, reply_markup=keyboard)
+                else:
+                    self.bot.send_message(user_id, "Данный пользователь является администратором")
             else:
                 self.bot.send_message(user_id, "Пользователь не найден")           
         elif role == "moderator":
@@ -125,18 +128,21 @@ class Moderation:
         if role == "admin":
             user_exists = self.database.user_exists_phone(phone_number)
             if user_exists:
-                user_info = self.database.user_info(phone_number)
-                # Формируем сообщение с информацией о пользователе
-                user_message = f"Имя: {user_info[2]}\nФамилия: {user_info[3]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[4]}"
-                
-                # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
-                keyboard = types.InlineKeyboardMarkup()
-                confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_remove_mod_{phone_number}")
-                cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_remove_mod")
-                keyboard.add(confirm_remove_mod_button, cancel_remove_mod_button)
+                if self.database.check_admin_role is False:
+                    user_info = self.database.user_info(phone_number)
+                    # Формируем сообщение с информацией о пользователе
+                    user_message = f"Имя: {user_info[2]}\nФамилия: {user_info[3]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[4]}"
+                    
+                    # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
+                    keyboard = types.InlineKeyboardMarkup()
+                    confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_remove_mod_{phone_number}")
+                    cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_remove_mod")
+                    keyboard.add(confirm_remove_mod_button, cancel_remove_mod_button)
 
-                # Отправляем сообщение с клавиатурой
-                self.bot.send_message(user_id, user_message, reply_markup=keyboard)
+                    # Отправляем сообщение с клавиатурой
+                    self.bot.send_message(user_id, user_message, reply_markup=keyboard)
+                else:
+                    self.bot.send_message(user_id, "Нельзя снять администратора")
             else:
                 self.bot.send_message(user_id, "Пользователь не найден")           
         elif role == "moderator":
@@ -170,7 +176,8 @@ class Moderation:
                 'first_name': None,
                 'last_name': None,
                 'region': None,
-                'events': None
+                'events': None,
+                'user_group': None
             }
 
             for column in range(1, max_column + 1):
@@ -183,12 +190,13 @@ class Moderation:
                 first_name = sheet.cell(row=row, column=column_mapping['first_name']).value
                 last_name = sheet.cell(row=row, column=column_mapping['last_name']).value
                 region = sheet.cell(row=row, column=column_mapping['region']).value
+                user_group = sheet.cell(row=row, column=column_mapping['user_group']).value
                 events = None
 
                 if column_mapping['events'] is not None:
                     events = sheet.cell(row=row, column=column_mapping['events']).value
 
-                self.database.insert_user(phone_number, first_name, last_name, region, events)
+                self.database.insert_user(phone_number, first_name, last_name, region, events, user_group)
 
             self.bot.send_message(user_id, "Пользователи добавлены")
             self.database.clear_pending_command(user_id)

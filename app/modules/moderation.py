@@ -118,6 +118,7 @@ class Moderation:
             markup = self.admin_markup()
             self.bot.send_message(user_id, text="Команда для снятия модератора: /remove_mod \n\n Пример ее использования:\n /remove_mod 79998887766", reply_markup=markup)
 
+    # Удаление модератора
     def remove_moderator(self, user_id, phone_number):
         role = self.database.get_user_role(user_id)
         markup = None
@@ -145,6 +146,7 @@ class Moderation:
             markup = self.user_markup()            
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
     
+    # Загрузка пользователей
     def add_users(self, message):
         user_id = message.from_user.id
         file_id = message.document.file_id

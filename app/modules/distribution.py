@@ -128,6 +128,7 @@ class Distribution:
             self.database.clear_pending_command(user_id)
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
     
+    # Обработка нкопки отмены рассылки
     def cancel_download_distribution(self, message):
         user_id = message.from_user.id
         role = self.database.get_user_role(user_id)

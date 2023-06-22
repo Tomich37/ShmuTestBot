@@ -122,7 +122,7 @@ class DialogBot:
             if self.database.user_exists_id(user_id):
                 if user_role != 'user':
                     self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
-                    self.bot.send_message(message.chat.id, "Загрузите exel файл")
+                    self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - фамилия\nlast_name - имя\nregion - регион")
                 else:  
                     markup = self.user_markup()
                     self.bot.send_message(user_id, "Недостаточно прав", reply_markup=markup)
@@ -279,10 +279,10 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
             user_id = message.from_user.id
-            if message.text == "Завершить загрузку":
+            if message.text == "Завершить рассылку":
                 self.database.clear_pending_command(user_id)
                 finish_distribution(message)
-            elif message.text == "Отменить загрузку":
+            elif message.text == "Отменить рассылку":
                 self.database.clear_pending_command(user_id)
                 cancel_distribution(message)
             else:
@@ -291,7 +291,6 @@ class DialogBot:
                     self.distribution.create_distribution_text(user_id, text)
                 else:
                     __handle_start(message)
-
 
         @self.bot.message_handler(content_types=['photo'])
         def handle_photo(message):
@@ -313,7 +312,7 @@ class DialogBot:
             elif self.database.get_pending_command(user_id) == '/add_users':
                 self.moderation.add_users(message)
 
-        @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить загрузку')
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить рассылку')
         def finish_distribution(message):
             user_id = message.from_user.id            
             role = self.database.get_user_role(user_id) 
@@ -351,7 +350,7 @@ class DialogBot:
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
 
-        @self.bot.message_handler(func=lambda message: message.text.lower() == 'Отменить загрузку')
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'отменить рассылку')
         def cancel_distribution(message):
             self.distribution.cancel_download_distribution(message)
 

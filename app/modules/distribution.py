@@ -122,10 +122,20 @@ class Distribution:
             self.bot.send_document(user_id, open(file_path, 'rb'))
             print(self.i, len(self.file_paths), distribution_id)            
             self.i += 1            
-            
-
         else:
             markup = self.moderation.user_markup()
             # Очистка команды ожидания после завершения рассылки
             self.database.clear_pending_command(user_id)
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+    
+    def cancel_download_distribution(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        self.clear_file_paths()
+        if role == 'moderator':
+            markup = self.moderation.moder_markup()
+            self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
+        elif role == 'admin':
+            markup = self.moderation.admin_markup()
+            self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
+

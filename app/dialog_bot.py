@@ -279,15 +279,19 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
             user_id = message.from_user.id
-            if message.text != "Завершить загрузку":
+            if message.text == "Завершить загрузку":
+                self.database.clear_pending_command(user_id)
+                finish_distribution(message)
+            elif message.text == "Отменить загрузку":
+                self.database.clear_pending_command(user_id)
+                cancel_distribution(message)
+            else:
                 if self.database.user_exists_id(user_id):
                     text = message.text
                     self.distribution.create_distribution_text(user_id, text)
                 else:
                     __handle_start(message)
-            else:
-                self.database.clear_pending_command(message.from_user.id)
-                start_distribution(message)
+
 
         @self.bot.message_handler(content_types=['photo'])
         def handle_photo(message):
@@ -300,15 +304,17 @@ class DialogBot:
             user_id = message.from_user.id
             if self.database.get_pending_command(user_id) == '/cd':               
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-                end_download_distribution_button = types.KeyboardButton(text="Завершить загрузку")
+                end_download_distribution_button = types.KeyboardButton(text="Завершить рассылку")
+                cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
                 markup.add(end_download_distribution_button)
+                markup.add(cancel_download_distribution_button)
                 self.bot.send_message(message.chat.id, "Загружен файл:", reply_markup=markup) 
                 self.distribution.create_distribution_with_file(message)  
             elif self.database.get_pending_command(user_id) == '/add_users':
                 self.moderation.add_users(message)
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить загрузку')
-        def start_distribution(message):
+        def finish_distribution(message):
             user_id = message.from_user.id            
             role = self.database.get_user_role(user_id) 
             if role != "user":      
@@ -332,15 +338,22 @@ class DialogBot:
                         else:
                             print(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
                             continue  # Продолжаем рассылку следующему пользователю
-                markup = self.moderation.admin_markup()
                 self.distribution.clear_file_paths()
-                self.bot.send_message(message.chat.id, "Рассылка выполнена", reply_markup=markup)
+                if role == 'admin':
+                    markup = self.moderation.admin_markup()                
+                    self.bot.send_message(message.chat.id, "Рассылка выполнена", reply_markup=markup)
+                else:
+                    markup = self.moderation.moder_markup()                
+                    self.bot.send_message(message.chat.id, "Рассылка выполнена", reply_markup=markup)
             else:
                 markup = self.moderation.user_markup()
                 # Очистка команды ожидания после завершения рассылки
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
 
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'Отменить загрузку')
+        def cancel_distribution(message):
+            self.distribution.cancel_download_distribution(message)
 
         # Запуск бота
         self.bot.polling()

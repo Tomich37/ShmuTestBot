@@ -287,7 +287,7 @@ class DialogBot:
                 text = self.database.send_distribution_text(distribution_id)
                 for userd_id in self.user_ids:
                     try:
-                        message = self.bot.send_message(userd_id, text)
+                        self.bot.send_message(userd_id, text)
                         time.sleep(0.5)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
@@ -385,7 +385,7 @@ class DialogBot:
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')
-            words = [word.strip() for word in words]  # Удаление лишних пробелов
+            words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
             finish_distribution_button = types.KeyboardButton(text="Завершить рассылку документов")
@@ -395,6 +395,7 @@ class DialogBot:
 
             # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
             self.user_ids = self.database.find_users_by_event_or_group(words)
+            self.user_ids = list(set(self.user_ids))
             self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
@@ -411,7 +412,7 @@ class DialogBot:
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')
-            words = [word.strip() for word in words]  # Удаление лишних пробелов
+            words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
             finish_distribution_button = types.KeyboardButton(text="Выполнить рассылку")
@@ -421,6 +422,7 @@ class DialogBot:
 
             # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
             self.user_ids = self.database.find_users_by_event_or_group(words)
+            self.user_ids = list(set(self.user_ids))
             self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
@@ -437,7 +439,7 @@ class DialogBot:
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')
-            words = [word.strip() for word in words]  # Удаление лишних пробелов
+            words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
             finish_distribution_button = types.KeyboardButton(text="Завершить рассылку")
@@ -447,6 +449,7 @@ class DialogBot:
 
             # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
             self.user_ids = self.database.find_users_by_event_or_group(words)
+            self.user_ids = list(set(self.user_ids))
             self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 

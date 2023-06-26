@@ -216,7 +216,7 @@ class Database:
     def find_users_by_event_or_group(self, words):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            query = "SELECT user_id FROM users WHERE (LOWER(events) LIKE ? OR LOWER(user_group) LIKE ?) AND authorized = 1"
+            query = "SELECT user_id FROM users WHERE (LOWER(region) LIKE ? OR LOWER(user_group) LIKE ?) AND authorized = 1"
             users = []
 
             for word in words:

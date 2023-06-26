@@ -36,12 +36,19 @@ class Distribution:
                 self.bot.send_message(user_id, "У вас недостаточно прав.", reply_markup=markup)
             else:
                 # Создание кнопок "Отправить" и "отмена"              
-                keyboard = types.InlineKeyboardMarkup()
-                send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_{distribution_id}")
-                cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
-                keyboard.add(send_button, cancel_button)
+                # keyboard = types.InlineKeyboardMarkup()
+                # send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_{distribution_id}")
+                # cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+                # keyboard.add(send_button, cancel_button)
 
-                self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)                
+                # self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)     
+                # 
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                select_groups_button = types.KeyboardButton(text="Назначить группы")
+                cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+                markup.add(select_groups_button)
+                markup.add(cancel_download_distribution_button)
+                self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", reply_markup=markup)            
         else:
             self.bot.send_message(user_id, "Не удалось создать рассылку.")
 
@@ -77,16 +84,23 @@ class Distribution:
                 self.bot.send_message(user_id, "У вас недостаточно прав.", reply_markup=markup)
             else:
                 # Создание кнопок "Отправить" и "отмена"              
-                keyboard = types.InlineKeyboardMarkup()
-                send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_photo_{distribution_id}")
-                cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
-                keyboard.add(send_button, cancel_button)
+                # keyboard = types.InlineKeyboardMarkup()
+                # send_button = types.InlineKeyboardButton(text="Отправить", callback_data=f"send_distribution_photo_{distribution_id}")
+                # cancel_button = types.InlineKeyboardButton(text="Отменить", callback_data="cancel_distribution")
+                # keyboard.add(send_button, cancel_button)
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                select_groups_button = types.KeyboardButton(text="Добавить группы")
+                cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+                markup.add(select_groups_button)
+                markup.add(cancel_download_distribution_button)
+                
 
                 # Сохранение файла в базе данных
                 self.database.save_distribution_file_path(distribution_id, file_path)
 
                 # Отправка медиагруппы с текстом и фотографиями
-                self.bot.send_photo(user_id, photo = open(file_path, 'rb'), caption=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
+                # self.bot.send_photo(user_id, photo = open(file_path, 'rb'), caption=f"Сообщение для рассылки:\n\n{text}", reply_markup=keyboard)
+                self.bot.send_photo(user_id, photo = open(file_path, 'rb'), caption=f"Сообщение для рассылки:\n\n{text}", reply_markup=markup)
         else:
             self.bot.send_message(user_id, "Не удалось создать рассылку.")
         # Очистка команды ожидания после завершения рассылки
@@ -126,14 +140,14 @@ class Distribution:
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
     
     # Обработка нкопки отмены рассылки
-    def cancel_download_distribution(self, message):
+    def cancel_distribution(self, message):
         user_id = message.from_user.id
         role = self.database.get_user_role(user_id)
         self.clear_file_paths()
+        self.database.clear_pending_command(user_id)
         if role == 'moderator':
             markup = self.moderation.moder_markup()
             self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
         elif role == 'admin':
             markup = self.moderation.admin_markup()
             self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
-

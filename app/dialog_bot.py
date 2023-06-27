@@ -148,8 +148,6 @@ class DialogBot:
                 if user_role != 'user':
                     markup = self.admin_markup()
                     self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
-                else:
-                    self.bot.send_message(user_id, "Выберите действие:")
             else:
                 __handle_start(message)
 

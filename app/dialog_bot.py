@@ -86,7 +86,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
                 print(user_role)
             else:
-                self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nЕсли введете данные в другом, вы можете попасть не в ту группу.\n\nДля изменения введенных данных расскройте меню и нажмите кнопку для перерегистрации")
+                self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nЕсли введете данные в другом, вы можете попасть не в ту группу.\n\nДля изменения введенных введите команду /start")
                 self.database.set_pending_command(user_id, '/fio')
                 user_role = None
 

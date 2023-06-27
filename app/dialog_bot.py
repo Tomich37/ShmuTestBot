@@ -255,7 +255,7 @@ class DialogBot:
             self.distribution.clear_file_paths()
             self.distribution.clear_media_group()
             self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите текст рассылки, или приложите файлы \n\nНа данный момент поддерживаются:\n1.Текстовая рассылка\n2.До 10 фотографий с подписью\n3.Документы без подписи")
+            self.bot.send_message(message.chat.id, "Введите текст рассылки, или приложите файлы \n\nНа данный момент поддерживаются:\n1.Текстовая рассылка\n2.До 9 фотографий с подписью\n3.Документы без подписи")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
@@ -510,10 +510,6 @@ class DialogBot:
             else:
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав")
-
-
-
-
 
         # Запуск бота
         self.bot.polling()

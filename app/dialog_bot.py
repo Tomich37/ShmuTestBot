@@ -14,6 +14,7 @@ class DialogBot:
         config = configparser.ConfigParser()
         config.read('./config.ini')
         self.i = 0
+        self.photo_group = None
 
         # Получение значения токена из файла конфигурации
         self.token = config.get('default', 'token')
@@ -36,12 +37,12 @@ class DialogBot:
         markup.add(add_moderator_button)
         return markup
 
-    @staticmethod
-    def user_markup():
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-        distribution_button= types.KeyboardButton(text="События")
-        markup.add(distribution_button)
-        return markup
+    # @staticmethod
+    # def user_markup():
+    #     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+    #     distribution_button= types.KeyboardButton(text="События")
+    #     markup.add(distribution_button)
+    #     return markup
 
     def run(self):
         # Показывает меню с кнопками
@@ -98,9 +99,7 @@ class DialogBot:
                 markup.add(moderation_button)
                 self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
             else:
-                events_button = types.KeyboardButton(text="События")
-                markup.add(events_button)
-                self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
+                self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться возможностями бота.")
 
             # Обновляем атрибут authorized_user в экземпляре класса User
             self.user.authorized_user = self.authorized_user
@@ -123,9 +122,8 @@ class DialogBot:
                 if user_role != 'user':
                     self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
                     self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - имя\nlast_name - фамилия\nregion - регион\nuser_group - группа пользователей (Базовая, продвинутая, блогеры)")
-                else:  
-                    markup = self.user_markup()
-                    self.bot.send_message(user_id, "Недостаточно прав", reply_markup=markup)
+                else:
+                    self.bot.send_message(user_id, "Недостаточно прав")
             else:
                 __handle_start(message)
 
@@ -137,9 +135,8 @@ class DialogBot:
                 if user_role != 'user':
                     markup = self.admin_markup()
                     self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
-                else:  
-                    markup = self.user_markup()
-                    self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+                else:
+                    self.bot.send_message(user_id, "Выберите действие:")
             else:
                 __handle_start(message)
 
@@ -228,13 +225,13 @@ class DialogBot:
                 __handle_start(message)
 
         # Вызов функции events при получении сообщения "События"
-        @self.bot.message_handler(func=lambda message: message.text == "События")
-        def __handle_events_button(message):
-            user_id = message.from_user.id
-            if self.database.user_exists_id(user_id):
-                self.user.events_handler(message)
-            else:
-                __handle_start(message)
+        # @self.bot.message_handler(func=lambda message: message.text == "События")
+        # def __handle_events_button(message):
+        #     user_id = message.from_user.id
+        #     if self.database.user_exists_id(user_id):
+        #         self.user.events_handler(message)
+        #     else:
+        #         __handle_start(message)
 
         # Обработчик команды /events
         @self.bot.message_handler(commands=['events'])
@@ -255,8 +252,10 @@ class DialogBot:
             user_id = message.from_user.id
             text = "Документы:"
             distribution_id = self.database.save_distribution_text(text)
+            self.distribution.clear_file_paths()
+            self.distribution.clear_media_group()
             self.database.set_pending_command(user_id, '/cd')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите текст рассылки, или приложите файлы \n\nНа данный момент поддерживаются:\n1.Текстовая рассылка\n2.Фотография с подписью\n3.Документы без подписи")
+            self.bot.send_message(message.chat.id, "Введите текст рассылки, или приложите файлы \n\nНа данный момент поддерживаются:\n1.Текстовая рассылка\n2.До 10 фотографий с подписью\n3.Документы без подписи")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
         def process_distribution_text(message):
@@ -270,6 +269,9 @@ class DialogBot:
             elif message.text == "Выбрать группы":
                 self.database.clear_pending_command(user_id)
                 select_groups_document_button(message)
+            elif message.text == "Завершить загрузку фото":
+                self.database.clear_pending_command(user_id)
+                final_photo_distribution(message)
             else:
                 if self.database.user_exists_id(user_id):
                     text = message.text
@@ -305,17 +307,20 @@ class DialogBot:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
             else:
-                markup = self.moderation.user_markup()
-                # Очистка команды ожидания после завершения рассылки
                 self.database.clear_pending_command(user_id)
-                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+                self.bot.send_message(user_id, "У вас недостаточно прав")
 
         #Если загружено фото
         @self.bot.message_handler(content_types=['photo'])
         def handle_photo(message):
             user_id = message.from_user.id
-            if self.database.get_pending_command(user_id) == '/cd':
+            if self.database.get_pending_command(user_id) == '/cd':                
                 self.distribution.process_distribution_photo(message)
+                
+        
+        @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить загрузку фото')
+        def final_photo_distribution(message):
+           self.photo_group = self.distribution.final_distribution_photo(message)
 
         #Если загружен документ
         @self.bot.message_handler(content_types=['document'])
@@ -364,10 +369,8 @@ class DialogBot:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
             else:
-                markup = self.moderation.user_markup()
-                # Очистка команды ожидания после завершения рассылки
                 self.database.clear_pending_command(user_id)
-                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+                self.bot.send_message(user_id, "У вас недостаточно прав")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'отменить рассылку')
         def cancel_distribution(message):
@@ -445,7 +448,8 @@ class DialogBot:
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'добавить группы')
         def select_groups_photo_button(message):
-            user_id = message.from_user.id
+            user_id = message.from_user.id            
+            self.distribution.clear_i()
             self.database.set_pending_command(user_id, '/spg')  # Сохраняем команду в БД для последующего использования
             region_values = self.database.get_unique_column_values("region")
             user_group_values = self.database.get_unique_column_values("user_group")
@@ -478,33 +482,25 @@ class DialogBot:
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
 
+        # Отправка фото
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'завершить рассылку')
         def finish_photo_distribution(message):
             user_id = message.from_user.id            
             role = self.database.get_user_role(user_id)
-            if role != "user":      
-                distribution_id = self.database.get_latest_distribution_id()
-                text = self.database.send_distribution_text(distribution_id)
-                file_paths = self.database.get_distribution_file_paths(distribution_id)
-                if file_paths:
-                    file_path = file_paths[0]  # Получаем первый и единственный файл из списка
-                    for userd_id in self.user_ids:
-                        with open(file_path, 'rb') as photo:
-                            print(user_id, photo, text)
-                            try:
-                                message = self.bot.send_photo(userd_id, photo, caption=text)
-                                time.sleep(0.5)
-                            except telebot.apihelper.ApiTelegramException as e:
-                                if e.result.status_code == 403:
-                                    # Пользователь заблокировал бота
-                                    self.database.update_user_authorized(userd_id, 0)
-                                    print(f"Пользователь с ID {userd_id} заблокировал бота")
-                                    continue  # Продолжаем рассылку следующему пользователю
-                                else:
-                                    print(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
-                                    continue  # Продолжаем рассылку следующему пользователю
-                else:
-                    print("Фотография не найдена.")             
+            if role != "user":
+                for userd_id in self.user_ids:
+                    try:
+                        message = self.bot.send_media_group(userd_id, self.photo_group)
+                        time.sleep(0.5)
+                    except telebot.apihelper.ApiTelegramException as e:
+                        if e.result.status_code == 403:
+                            # Пользователь заблокировал бота
+                            self.database.update_user_authorized(userd_id, 0)
+                            print(f"Пользователь с ID {userd_id} заблокировал бота")
+                            continue  # Продолжаем рассылку следующему пользователю
+                        else:
+                            print(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
+                            continue  # Продолжаем рассылку следующему пользователю       
                 if role == 'admin':
                     markup = self.moderation.admin_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
@@ -512,10 +508,8 @@ class DialogBot:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
             else:
-                markup = self.moderation.user_markup()
-                # Очистка команды ожидания после завершения рассылки
                 self.database.clear_pending_command(user_id)
-                self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+                self.bot.send_message(user_id, "У вас недостаточно прав")
 
 
 

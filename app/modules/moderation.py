@@ -187,14 +187,14 @@ class Moderation:
 
             for row in range(2, sheet.max_row + 1):
                 phone_number = sheet.cell(row=row, column=column_mapping['phone_number']).value
-                first_name = sheet.cell(row=row, column=column_mapping['first_name']).value
-                last_name = sheet.cell(row=row, column=column_mapping['last_name']).value
-                region = sheet.cell(row=row, column=column_mapping['region']).value
-                user_group = sheet.cell(row=row, column=column_mapping['user_group']).value
+                first_name = sheet.cell(row=row, column=column_mapping['first_name']).value.lower()
+                last_name = sheet.cell(row=row, column=column_mapping['last_name']).value.lower()
+                region = sheet.cell(row=row, column=column_mapping['region']).value.lower()
+                user_group = sheet.cell(row=row, column=column_mapping['user_group']).value.lower()
                 events = None
 
                 if column_mapping['events'] is not None:
-                    events = sheet.cell(row=row, column=column_mapping['events']).value
+                    events = sheet.cell(row=row, column=column_mapping['events']).value.lower()
 
                 self.database.insert_user(phone_number, first_name, last_name, region, events, user_group)
 

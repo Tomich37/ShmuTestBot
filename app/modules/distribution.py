@@ -30,7 +30,7 @@ class Distribution:
         self.media_group = []
 
     def clear_i(self):
-        self.i = []
+        self.i = 0
 
     # Обработчик текстовой рассылки
     def create_distribution_text(self, user_id, text):

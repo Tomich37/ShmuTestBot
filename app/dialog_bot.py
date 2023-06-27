@@ -377,8 +377,13 @@ class DialogBot:
         def select_groups_document_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/sdg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
-
+            region_values = self.database.get_unique_column_values("region")
+            user_group_values = self.database.get_unique_column_values("user_group")
+            region_values_str = "\n".join(str(value) for value in region_values if value is not None)
+            user_group_values_str = "\n".join(str(value) for value in user_group_values if value is not None)
+            message_text = f"Введите через запятую группы для рассылки, например:\nТестовая, базовая, Москва\n\nЧтобы отправить всем авторизованным в боте пользователям, введите 'все'\n\nДоступные группы:\nРегионы:\n{region_values_str}\n\nГруппы:\n{user_group_values_str}"
+            self.bot.send_message(message.chat.id, message_text)
+       
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/sdg')
         def select_document_groups(message):
@@ -407,8 +412,13 @@ class DialogBot:
         def select_groups_text_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/stg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
-
+            region_values = self.database.get_unique_column_values("region")
+            user_group_values = self.database.get_unique_column_values("user_group")
+            region_values_str = "\n".join(str(value) for value in region_values if value is not None)
+            user_group_values_str = "\n".join(str(value) for value in user_group_values if value is not None)
+            message_text = f"Введите через запятую группы для рассылки, например:\nТестовая, базовая, Москва\n\nЧтобы отправить всем авторизованным в боте пользователям, введите 'все'\n\nДоступные группы:\nРегионы:\n{region_values_str}\n\nГруппы:\n{user_group_values_str}"
+            self.bot.send_message(message.chat.id, message_text)
+       
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/stg')
         def select_text_groups(message):
@@ -437,8 +447,13 @@ class DialogBot:
         def select_groups_photo_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/spg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
-
+            region_values = self.database.get_unique_column_values("region")
+            user_group_values = self.database.get_unique_column_values("user_group")
+            region_values_str = "\n".join(str(value) for value in region_values if value is not None)
+            user_group_values_str = "\n".join(str(value) for value in user_group_values if value is not None)
+            message_text = f"Введите через запятую группы для рассылки, например:\nТестовая, базовая, Москва\n\nЧтобы отправить всем авторизованным в боте пользователям, введите 'все'\n\nДоступные группы:\nРегионы:\n{region_values_str}\n\nГруппы:\n{user_group_values_str}"
+            self.bot.send_message(message.chat.id, message_text)
+       
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/spg')
         def select_photo_groups(message):

@@ -200,19 +200,22 @@ class Database:
             results = cursor.fetchall()
         return [result[0] for result in results]
     
+    # Изменение значения авторизации пользователя
     def update_user_authorized(self, user_id, authorized):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("UPDATE users SET authorized = ? WHERE user_id = ?", (authorized, user_id))
             conn.commit()
 
+    # Добавление новых пользователей
     def insert_user(self, phone_number, first_name, last_name, region, events, user_group):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT OR IGNORE INTO users (phone_number, first_name, last_name, region, events, user_group, authorized) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         (phone_number, first_name, last_name, region, events, user_group, 0))
             conn.commit()
-        
+    
+    # Поиск авторизированных пользователей по группам    
     def find_users_by_event_or_group(self, words):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -227,4 +230,13 @@ class Database:
                 users.extend([user[0] for user in result])
 
             return users
-
+        
+    # Уникальные значения столбцов в users
+    def get_unique_column_values(self, column_name):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            query = f"SELECT DISTINCT {column_name} FROM users"
+            cursor.execute(query)
+            result = cursor.fetchall()
+            unique_values = [row[0] for row in result]
+            return unique_values

@@ -52,6 +52,7 @@ class Distribution:
         user_id = message.from_user.id
         user_role = self.database.get_user_role(user_id)
         distribution_id = None  # Инициализация переменной distribution_id
+        
         if message.caption is not None:
             text = message.caption
             photo_id = message.photo[-1].file_id

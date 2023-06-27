@@ -15,6 +15,7 @@ class DialogBot:
         config.read('./config.ini')
         self.i = 0
         self.photo_group = None
+        self.phone_number = None
 
         # Получение значения токена из файла конфигурации
         self.token = config.get('default', 'token')
@@ -68,27 +69,25 @@ class DialogBot:
         def __handle_contact(message):
             contact = message.contact
             user_id = message.from_user.id
-            first_name = message.from_user.first_name
-            last_name = message.from_user.last_name
-            phone_number = contact.phone_number
+            self.phone_number = contact.phone_number
 
             # Отправляем в базу данных значения user_id и phone_number
-            self.database.set_user_data(user_id, phone_number)
+            self.database.set_user_data(user_id, self.phone_number)
 
-            print(user_id, phone_number, first_name, last_name)
+            print(user_id, self.phone_number)
 
             # Проверяем, существует ли пользователь в базе данных
-            if self.database.user_exists_phone(phone_number):
+            if self.database.user_exists_phone(self.phone_number):
                 # Обновляем запись существующего пользователя
-                self.database.update_user(user_id, phone_number, first_name, last_name)
+                self.database.update_user(user_id, self.phone_number)
                 self.authorized_user = True
                 # Переменная для получения роли пользователя
                 user_role = self.database.get_user_role(user_id)
+                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
                 print(user_role)
             else:
-                # Добавляем нового пользователя
-                self.database.add_user(user_id, phone_number, first_name, last_name, user_role="user")
-                self.authorized_user = True
+                self.bot.send_message(message.chat.id, "прошу ввести ваши фамилию и имя")
+                self.database.set_pending_command(user_id, '/fio')
                 user_role = None
 
             # Удаляем кнопку "Поделиться телефоном" из клавиатуры
@@ -98,11 +97,25 @@ class DialogBot:
                 moderation_button = types.KeyboardButton(text="Модерация")
                 markup.add(moderation_button)
                 self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
+                self.bot.clear_reply_handlers(message)
+            elif user_role == "user":
+                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
+                self.bot.clear_reply_handlers(message)
             else:
-                self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться возможностями бота.")
+                self.bot.clear_reply_handlers(message)
 
             # Обновляем атрибут authorized_user в экземпляре класса User
             self.user.authorized_user = self.authorized_user
+        
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/fio')
+        def handle_fio(message):
+            user_id = message.from_user.id
+            result_fio = self.database.handle_fio(message, self.phone_number)     
+            if result_fio is None:
+                self.bot.send_message(message.chat.id, "ФИО должно содержать два слова: Фамилия, имя, прошу повторить ввод")
+            else:
+                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
+                self.database.clear_pending_command(user_id)
 
 
         # Вызов функции check_moderation при получении сообщения "Модерация"
@@ -192,7 +205,7 @@ class DialogBot:
                             print(user_id, photo, text)
                             try:
                                 message = self.bot.send_photo(user_id, photo, caption=text)
-                                time.sleep(0.5)
+                                time.sleep(3)
                             except telebot.apihelper.ApiTelegramException as e:
                                 if e.result.status_code == 403:
                                     # Пользователь заблокировал бота
@@ -290,7 +303,7 @@ class DialogBot:
                 for userd_id in self.user_ids:
                     try:
                         self.bot.send_message(userd_id, text)
-                        time.sleep(0.5)
+                        time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
                             # Пользователь заблокировал бота
@@ -351,7 +364,7 @@ class DialogBot:
                         for file_path in file_paths:
                             with open(file_path, 'rb') as file:
                                 self.bot.send_document(userd_id, file)
-                        time.sleep(0.5)
+                        time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
                             # Пользователь заблокировал бота
@@ -491,7 +504,7 @@ class DialogBot:
                 for userd_id in self.user_ids:
                     try:
                         message = self.bot.send_media_group(userd_id, self.photo_group)
-                        time.sleep(0.5)
+                        time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
                             # Пользователь заблокировал бота

@@ -1,4 +1,5 @@
 import sqlite3, configparser
+import re
 
 class Database:
     def __init__(self):
@@ -52,10 +53,10 @@ class Database:
         return result[0] if result else None
     
     # Обновление записи пользователя в БД users
-    def update_user(self, user_id, phone_number, first_name, last_name):
+    def update_user(self, user_id, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET user_id=?, authorized=?, first_name=?, last_name=? WHERE phone_number=?", (user_id, True, first_name, last_name, phone_number))
+            cursor.execute("UPDATE users SET user_id=?, authorized=? WHERE phone_number=?", (user_id, True, phone_number))
             conn.commit()
 
     #Добавление нового пользователя в БД users    
@@ -208,11 +209,11 @@ class Database:
             conn.commit()
 
     # Добавление новых пользователей
-    def insert_user(self, phone_number, first_name, last_name, region, events, user_group):
+    def insert_user(self, phone_number, fio, region, user_group, job):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT OR IGNORE INTO users (phone_number, first_name, last_name, region, events, user_group, authorized) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        (phone_number, first_name, last_name, region, events, user_group, 0))
+            cursor.execute("INSERT OR IGNORE INTO users (phone_number, fio, region, user_group, job, role, authorized) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (phone_number, fio, region, user_group, job, "user", 0))
             conn.commit()
     
     # Поиск авторизированных пользователей по группам    
@@ -240,3 +241,30 @@ class Database:
             result = cursor.fetchall()
             unique_values = [row[0] for row in result]
             return unique_values
+
+    def handle_fio(self, message, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            fio = message.text.lower().strip()
+
+            # Удаление символов кроме букв из начала и конца строки
+            fio = re.sub(r'[^a-zA-Zа-яА-Я\s]+', '', fio)
+
+            # Проверка, что значение состоит из трех слов
+            words = fio.split()
+            if len(words) != 2:
+                # Значение не соответствует требуемому формату
+                return None
+
+            # Проверка, что значение уже есть в таблице
+            cursor.execute("SELECT COUNT(*) FROM users WHERE LOWER(fio) = ?", (fio,))
+            result = cursor.fetchone()
+            if result[0] > 0:
+                # Значение уже существует в таблице, выполняем обновление
+                cursor.execute("UPDATE users SET phone_number = ?, authorized = 1 WHERE LOWER(fio) = ?", (phone_number, fio))
+            else:
+                # Значения нет в таблице, выполняем вставку
+                cursor.execute("INSERT INTO users (fio, phone_number, authorized) VALUES (?, ?, 1)", (fio, phone_number))
+
+            conn.commit()
+            return True

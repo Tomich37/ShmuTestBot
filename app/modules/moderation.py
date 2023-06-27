@@ -4,6 +4,7 @@ import telebot
 import openpyxl
 import os
 from telebot import types
+import re
 
 class Moderation:
     def __init__(self, bot, save_directory):
@@ -173,11 +174,11 @@ class Moderation:
 
             column_mapping = {
                 'phone_number': None,
-                'first_name': None,
-                'last_name': None,
+                'fio': None,
                 'region': None,
                 'events': None,
-                'user_group': None
+                'user_group': None,
+                'job': None
             }
 
             for column in range(1, max_column + 1):
@@ -185,18 +186,52 @@ class Moderation:
                 if cell_value in column_mapping:
                     column_mapping[cell_value] = column
 
-            for row in range(2, sheet.max_row + 1):
-                phone_number = sheet.cell(row=row, column=column_mapping['phone_number']).value
-                first_name = sheet.cell(row=row, column=column_mapping['first_name']).value.lower()
-                last_name = sheet.cell(row=row, column=column_mapping['last_name']).value.lower()
-                region = sheet.cell(row=row, column=column_mapping['region']).value.lower()
-                user_group = sheet.cell(row=row, column=column_mapping['user_group']).value.lower()
-                events = None
+            for sheet in workbook.sheetnames:
+                current_sheet = workbook[sheet]
+                
+                for row in range(2, current_sheet.max_row + 1):
+                    phone_number = current_sheet.cell(row=row, column=column_mapping['phone_number']).value
+                    fio = None
+                    region = None
+                    user_group = None
+                    job = None
 
-                if column_mapping['events'] is not None:
-                    events = sheet.cell(row=row, column=column_mapping['events']).value.lower()
+                    if phone_number is not None:
+                        # Удаление всех букв, символов и пробелов из номера телефона
+                        phone_number = re.sub(r'\D', '', str(phone_number))
 
-                self.database.insert_user(phone_number, first_name, last_name, region, events, user_group)
+                    if column_mapping['user_group'] is not None:
+                        user_group_cell = current_sheet.cell(row=row, column=column_mapping['user_group'])
+                        user_group = user_group_cell.value if user_group_cell.value is not None else None
+
+                    if column_mapping['region'] is not None:
+                        region_cell = current_sheet.cell(row=row, column=column_mapping['region'])
+                        region = region_cell.value.lower() if region_cell.value is not None else None
+
+                    if column_mapping['fio'] is not None:
+                        fio_cell = current_sheet.cell(row=row, column=column_mapping['fio'])
+                        fio_value = fio_cell.value
+                        if fio_value is not None:
+                            words = fio_value.split()
+                            fio = ' '.join(words[:2]).lower()
+                        else:
+                            fio = None
+                    else:
+                        fio = None
+
+                    if column_mapping['job'] is not None:
+                        job_cell = current_sheet.cell(row=row, column=column_mapping['job'])
+                        job = job_cell.value.lower() if job_cell.value is not None else None
+
+                    elif phone_number and (phone_number.startswith('8') and len(phone_number) == 11):
+                        phone_number = '7' + phone_number[1:]           
+                                 
+                    if phone_number and (phone_number.startswith('7') and len(phone_number) == 11):
+                        self.database.insert_user(phone_number, fio, region, user_group, job)
+                    else: 
+                        phone_number = None
+                        self.database.insert_user(phone_number, fio, region, user_group, job)
+
 
             self.bot.send_message(user_id, "Пользователи добавлены")
             self.database.clear_pending_command(user_id)

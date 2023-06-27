@@ -3,3 +3,5 @@
 *.db
 __pycache__
 app/modules/db/*
+app/modules/temp/*
+app/modules/media/*

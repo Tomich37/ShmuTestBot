@@ -282,7 +282,7 @@ class DialogBot:
         def finish_text_distribution(message):
             user_id = message.from_user.id            
             role = self.database.get_user_role(user_id)
-            distribution_id = self.database.get_latest_distribution_id() 
+            distribution_id = self.database.get_latest_distribution_id()
             if role != "user":      
                 text = self.database.send_distribution_text(distribution_id)
                 for userd_id in self.user_ids:
@@ -377,7 +377,7 @@ class DialogBot:
         def select_groups_document_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/sdg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва")
+            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
 
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/sdg')
@@ -391,12 +391,15 @@ class DialogBot:
             finish_distribution_button = types.KeyboardButton(text="Завершить рассылку документов")
             cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
             markup.add(finish_distribution_button)
-            markup.add(cancel_download_distribution_button)            
+            markup.add(cancel_download_distribution_button)    
 
-            # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
-            self.user_ids = self.database.find_users_by_event_or_group(words)
-            self.user_ids = list(set(self.user_ids))
-            self.database.clear_pending_command(user_id)
+            if "все" in words:
+                self.user_ids = [user[0] for user in self.database.get_users()]
+            else:
+                # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
+                self.user_ids = self.database.find_users_by_event_or_group(words)
+                self.user_ids = list(set(self.user_ids))
+                self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
 
@@ -404,7 +407,7 @@ class DialogBot:
         def select_groups_text_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/stg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва")
+            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
 
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/stg')
@@ -418,12 +421,15 @@ class DialogBot:
             finish_distribution_button = types.KeyboardButton(text="Выполнить рассылку")
             cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
             markup.add(finish_distribution_button)
-            markup.add(cancel_download_distribution_button)            
+            markup.add(cancel_download_distribution_button)
 
-            # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
-            self.user_ids = self.database.find_users_by_event_or_group(words)
-            self.user_ids = list(set(self.user_ids))
-            self.database.clear_pending_command(user_id)
+            if "все" in words:
+                self.user_ids = [user[0] for user in self.database.get_users()]
+            else:
+                # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
+                self.user_ids = self.database.find_users_by_event_or_group(words)
+                self.user_ids = list(set(self.user_ids))
+                self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
 
@@ -431,7 +437,7 @@ class DialogBot:
         def select_groups_photo_button(message):
             user_id = message.from_user.id
             self.database.set_pending_command(user_id, '/spg')  # Сохраняем команду в БД для последующего использования
-            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва")
+            self.bot.send_message(message.chat.id, "Введите через запятую группы для рассылки, например:\n\nТестовая, базовая, Москва\nЧтоб отправить всем авторизованным в боте пользователям, введите 'все'")
 
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/spg')
@@ -447,10 +453,13 @@ class DialogBot:
             markup.add(finish_distribution_button)
             markup.add(cancel_download_distribution_button)            
 
-            # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
-            self.user_ids = self.database.find_users_by_event_or_group(words)
-            self.user_ids = list(set(self.user_ids))
-            self.database.clear_pending_command(user_id)
+            if "все" in words:
+                self.user_ids = [user[0] for user in self.database.get_users()]
+            else:
+                # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
+                self.user_ids = self.database.find_users_by_event_or_group(words)
+                self.user_ids = list(set(self.user_ids))
+                self.database.clear_pending_command(user_id)
 
             self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
 

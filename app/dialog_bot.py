@@ -23,7 +23,7 @@ class DialogBot:
         self.save_directory = config.get('default', 'save_directory')
 
         # Создание экземпляра класса Database
-        self.database = Database()
+        self.database = Database(self.bot) 
         self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
         self.moderation = Moderation(self.bot, self.save_directory)
         self.distribution = Distribution(self.bot, self.save_directory, self.i)
@@ -112,9 +112,8 @@ class DialogBot:
             user_id = message.from_user.id
             result_fio = self.database.handle_fio(message, self.phone_number)     
             if result_fio is None:
-                self.bot.send_message(message.chat.id, "ФИО должно содержать два слова: Фамилия, имя, прошу повторить ввод")
+                self.bot.send_message(message.chat.id, "ФИО должно содержать два слова: Фамилия, имя\nПрошу повторить ввод")
             else:
-                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
                 self.database.clear_pending_command(user_id)
 
 

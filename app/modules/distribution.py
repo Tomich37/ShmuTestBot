@@ -8,7 +8,7 @@ import pdb
 
 class Distribution:
     def __init__(self, bot, save_directory, i):
-        self.database = Database()
+        self.database = Database(bot)
         self.moderation = Moderation(bot, save_directory)
         self.bot = bot
         self.save_directory = save_directory

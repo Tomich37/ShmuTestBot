@@ -7,9 +7,9 @@ from telebot import types
 import re
 
 class Moderation:
-    def __init__(self, bot, save_directory):
-        self.database = Database()
-        self.bot = bot
+    def __init__(self, bot, save_directory):   
+        self.database = Database(bot)     
+        self.bot = bot        
         self.save_directory = save_directory
 
     # Меню для разных ролей
@@ -225,7 +225,7 @@ class Moderation:
 
                     elif phone_number and (phone_number.startswith('8') and len(phone_number) == 11):
                         phone_number = '7' + phone_number[1:]           
-                                 
+
                     if phone_number and (phone_number.startswith('7') and len(phone_number) == 11):
                         self.database.insert_user(phone_number, fio, region, user_group, job)
                     else: 

@@ -1,12 +1,14 @@
 import sqlite3, configparser
 import re
+import os
 
 class Database:
-    def __init__(self):
+    def __init__(self, bot):
     
         # Чтение файла конфигурации
         config = configparser.ConfigParser()
         config.read('./config.ini')
+        self.bot = bot
 
         # Получение пути к файлу базы данных из файла конфигурации
         self.db_path_events = config.get('default', 'db_path_events')
@@ -246,6 +248,7 @@ class Database:
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             fio = message.text.lower().strip()
+            user_id = message.from_user.id
 
             # Удаление символов кроме букв из начала и конца строки
             fio = re.sub(r'[^a-zA-Zа-яА-Я\s]+', '', fio)
@@ -261,10 +264,19 @@ class Database:
             result = cursor.fetchone()
             if result[0] > 0:
                 # Значение уже существует в таблице, выполняем обновление
-                cursor.execute("UPDATE users SET phone_number = ?, authorized = 1 WHERE LOWER(fio) = ?", (phone_number, fio))
+                cursor.execute("UPDATE users SET phone_number = ?, user_id = ?, authorized = 1 WHERE LOWER(fio) = ?", (phone_number, user_id, fio))
+                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
             else:
+                cursor.execute("INSERT INTO users (fio, phone_number, authorized, user_id) VALUES (?, ?, 0, ?)", (fio, phone_number, user_id))
+                # Получение пути к текущему скрипту
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+
+                # Построение полного пути к файлу фотографии
+                photo_path = os.path.join(current_dir, 'media', 'dialogi.jpg')
                 # Значения нет в таблице, выполняем вставку
-                cursor.execute("INSERT INTO users (fio, phone_number, authorized) VALUES (?, ?, 1)", (fio, phone_number))
+                text = "Спасибо за регистрацию ❤️\n\nВ течение ближайших двух месяцев вы будете учиться работать в информационном пространстве в современных условиях с учетом специфики вашего региона.\n\nПервый вебинар состоится уже на этой неделе, не пропустите приглашение 🔥\n\nСкоро в боте появятся функции базы знаний, чтобы вы могли всегда найти самое важное ✅"
+                photo = open(photo_path, 'rb')
+                self.bot.send_photo(message.chat.id, photo, caption=text)
 
             conn.commit()
             return True

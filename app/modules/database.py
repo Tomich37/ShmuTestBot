@@ -251,7 +251,7 @@ class Database:
             user_id = message.from_user.id
 
             # Удаление символов кроме букв из начала и конца строки
-            fio = re.sub(r'[^a-zA-Zа-яА-Я\s]+', '', fio)
+            fio = re.sub(r'[^\w\s]+', '', fio)
 
             # Проверка, что значение состоит из трех слов
             words = fio.split()

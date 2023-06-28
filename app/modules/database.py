@@ -273,8 +273,12 @@ class Database:
                 if result[0] > 0:
                     print("Пользователь существует")
                 else:
-                    cursor.execute("UPDATE users SET user_id = ?, authorized = 1, phone_number = ?, role = ? WHERE LOWER(fio) = ?", (user_id, phone_number, role, fio))
-                    conn.commit()
+                    try:
+                        cursor.execute("UPDATE users SET user_id = ?, authorized = 1, phone_number = ?, role = ? WHERE LOWER(fio) = ?", (user_id, phone_number, role, fio))
+                        conn.commit()
+                    except sqlite3.IntegrityError:
+                        # Обработка ошибки
+                        print("Ошибка обновления записи пользователя: нарушение ограничения уникальности phone_number")
                     # Получение пути к текущему скрипту
                     current_dir = os.path.dirname(os.path.abspath(__file__))
 

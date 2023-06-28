@@ -313,11 +313,13 @@ class DialogBot:
             role = self.database.get_user_role(user_id)
             distribution_id = self.database.get_latest_distribution_id()
             if role != "user":      
-                text = self.database.send_distribution_text(distribution_id)
+                text = self.database.send_distribution_text(distribution_id)              
+                hide_keyboard = types.ReplyKeyboardRemove()
+                self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
                 for userd_id in self.user_ids:
                     try:
                         self.bot.send_message(userd_id, text)
-                        print(user_id, "текст доставлен")
+                        print(userd_id, "текст доставлен")
                         time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
@@ -373,13 +375,15 @@ class DialogBot:
             if role != "user":      
                 distribution_id = self.database.get_latest_distribution_id()
                 file_paths = self.database.get_distribution_file_paths(distribution_id)
+                hide_keyboard = types.ReplyKeyboardRemove()
+                self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
                 for userd_id in self.user_ids:
                     try:
                         self.bot.send_message(userd_id, "Документы:")
                         for file_path in file_paths:
                             with open(file_path, 'rb') as file:
                                 self.bot.send_document(userd_id, file)
-                                print(user_id, "документы доставлены")
+                                print(userd_id, "документы доставлены")
                         time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
@@ -520,10 +524,13 @@ class DialogBot:
             user_id = message.from_user.id            
             role = self.database.get_user_role(user_id)
             if role != "user":
+                hide_keyboard = types.ReplyKeyboardRemove()
+                self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
                 for userd_id in self.user_ids:
                     try:
                         message = self.bot.send_media_group(userd_id, self.photo_group)
                         time.sleep(3)
+                        print(userd_id, 'фото доставлено')
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
                             # Пользователь заблокировал бота

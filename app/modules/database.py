@@ -292,7 +292,7 @@ class Database:
                 if result[0] > 0:
                     print("Пользователь существует")
                 else:
-                    cursor.execute("INSERT INTO users (fio, user_id, authorized, phone_number, role) VALUES (?, ?, 1, ?, ?)", (fio, user_id, phone_number, role))
+                    cursor.execute("INSERT INTO users (fio, user_id, authorized, phone_number, role) VALUES (?, ?, 0, ?, ?)", (fio, user_id, phone_number, role))
                     # Получение пути к текущему скрипту
                     current_dir = os.path.dirname(os.path.abspath(__file__))
 

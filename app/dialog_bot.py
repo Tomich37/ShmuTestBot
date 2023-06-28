@@ -6,6 +6,7 @@ from telebot import types
 from .modules.moderation import Moderation
 from .modules.user_staff import User
 from .modules.distribution import Distribution
+import os
 
 
 class DialogBot:
@@ -61,8 +62,10 @@ class DialogBot:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
             markup.add(contact_button)
+            self.phone_number = None
 
             self.bot.send_message(message.chat.id, "Для авторизации прошу поделиться вашим номером телефона", reply_markup=markup)
+
 
         # Обработчик получения контакта
         @self.bot.message_handler(content_types=['contact'])
@@ -70,6 +73,7 @@ class DialogBot:
             contact = message.contact
             user_id = message.from_user.id
             self.phone_number = contact.phone_number
+            phone_number = contact.phone_number
 
             # Отправляем в базу данных значения user_id и phone_number
             self.database.set_user_data(user_id, self.phone_number)
@@ -77,14 +81,24 @@ class DialogBot:
             print(user_id, self.phone_number)
 
             # Проверяем, существует ли пользователь в базе данных
-            if self.database.user_exists_phone(self.phone_number):
+            if self.database.user_exists_phone(phone_number):
                 # Обновляем запись существующего пользователя
-                self.database.update_user(user_id, self.phone_number)
+                self.database.update_user(user_id, phone_number)
                 self.authorized_user = True
                 # Переменная для получения роли пользователя
                 user_role = self.database.get_user_role(user_id)
-                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
+                # Получение пути к текущему скрипту
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+
+                # Построение полного пути к файлу фотографии
+                media_dir = os.path.join(current_dir, 'modules', 'media')
+                photo_path = os.path.join(media_dir, 'avatar.png')
+                # Значения нет в таблице, выполняем вставку
+                text = "Спасибо за регистрацию ❤️\n\nВ течение ближайших двух месяцев вы будете учиться работать в информационном пространстве в современных условиях с учетом специфики вашего региона.\n\nПервый вебинар состоится уже на этой неделе, не пропустите приглашение 🔥\n\nСкоро в боте появятся функции базы знаний, чтобы вы могли всегда найти самое важное ✅"
+                photo = open(photo_path, 'rb')
+                self.bot.send_photo(message.chat.id, photo, caption=text)
                 print(user_role)
+                self.phone_number = None
             else:
                 self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nНапример:\nИванов Иван\n\nЕсли введете данные в другом порядке, вы можете попасть не в ту группу.\n\nДля изменения введенных фамилии и имени введите команду /start")
                 self.database.set_pending_command(user_id, '/fio')
@@ -99,8 +113,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
                 self.bot.clear_reply_handlers(message)
             elif user_role == "user":
-                self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
-                self.bot.clear_reply_handlers(message)
+                    self.bot.clear_reply_handlers(message)
             else:
                 self.bot.clear_reply_handlers(message)
 
@@ -111,11 +124,13 @@ class DialogBot:
         def handle_fio(message):
             user_id = message.from_user.id
             result_fio = self.database.handle_fio(message, self.phone_number) 
+            self.phone_number = None
             print(message.text)    
             if result_fio is None:
                 self.bot.send_message(message.chat.id, "ФИО должно содержать два слова: Фамилия, имя\nПрошу повторить ввод")
             else:
                 self.database.clear_pending_command(user_id)
+                self.phone_number = None
 
 
         # Вызов функции check_moderation при получении сообщения "Модерация"
@@ -203,6 +218,7 @@ class DialogBot:
                             print(user_id, photo, text)
                             try:
                                 message = self.bot.send_photo(user_id, photo, caption=text)
+                                print(user_id, "фото доставлено")
                                 time.sleep(3)
                             except telebot.apihelper.ApiTelegramException as e:
                                 if e.result.status_code == 403:
@@ -301,6 +317,7 @@ class DialogBot:
                 for userd_id in self.user_ids:
                     try:
                         self.bot.send_message(userd_id, text)
+                        print(user_id, "текст доставлен")
                         time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
@@ -362,6 +379,7 @@ class DialogBot:
                         for file_path in file_paths:
                             with open(file_path, 'rb') as file:
                                 self.bot.send_document(userd_id, file)
+                                print(user_id, "документы доставлены")
                         time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as e:
                         if e.result.status_code == 403:
@@ -401,6 +419,7 @@ class DialogBot:
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/sdg')
         def select_document_groups(message):
+            print("Создание рассылки документов")
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')
@@ -436,6 +455,7 @@ class DialogBot:
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/stg')
         def select_text_groups(message):
+            print("Создание текстовой рассылки")
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')
@@ -472,6 +492,7 @@ class DialogBot:
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/spg')
         def select_photo_groups(message):
+            print("Создание рассылки с фото")
             user_id = message.from_user.id
             # Получение введенных слов из сообщения и разделение их по запятой
             words = message.text.split(',')

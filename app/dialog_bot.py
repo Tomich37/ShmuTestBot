@@ -86,7 +86,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Благодарю за авторизацию!\nОжидайте информацию от организаторов.")
                 print(user_role)
             else:
-                self.bot.send_message(message.chat.id, "прошу ввести ваши фамилию и имя")
+                self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nНапример:\nИванов Иван\n\nЕсли введете данные в другом порядке, вы можете попасть не в ту группу.\n\nДля изменения введенных фамилии и имени введите команду /start")
                 self.database.set_pending_command(user_id, '/fio')
                 user_role = None
 
@@ -110,7 +110,8 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/fio')
         def handle_fio(message):
             user_id = message.from_user.id
-            result_fio = self.database.handle_fio(message, self.phone_number)     
+            result_fio = self.database.handle_fio(message, self.phone_number) 
+            print(message.text)    
             if result_fio is None:
                 self.bot.send_message(message.chat.id, "ФИО должно содержать два слова: Фамилия, имя\nПрошу повторить ввод")
             else:

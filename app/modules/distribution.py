@@ -193,3 +193,47 @@ class Distribution:
         elif role == 'admin':
             markup = self.moderation.admin_markup()
             self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
+
+    def handle_video_file(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        self.database.clear_pending_command(user_id)
+        if role != 'user':
+            self.database.set_pending_command(user_id, '/svgg')
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+            select_groups_button = types.KeyboardButton(text="Группы видеорассылки")
+            cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+            markup.add(select_groups_button)
+            markup.add(cancel_download_distribution_button)
+    
+            video_file = message.video
+            if video_file is not None:
+                file_name = video_file.file_name
+                file_info = self.bot.get_file(video_file.file_id)
+    
+                # Определение пути к файлу
+                file_path = os.path.join(self.save_directory, file_name)
+                try:
+                    with open(file_path, "wb") as f:
+                        file_content = self.bot.download_file(file_info.file_path)
+                        f.write(file_content)
+        
+                    distribution_id = self.database.save_distribution_text(message.caption)
+                
+                    with open(file_path, 'rb') as video:
+                        sent_message = self.bot.send_video(message.chat.id, video, caption=message.caption)
+                    
+                    video_id = sent_message.video.file_id
+                    message_id  = sent_message.message_id
+                    self.database.save_message_id(message_id, video_id, distribution_id)
+    
+                    self.bot.send_message(message.chat.id, 'Видео загружено', reply_markup=markup)
+                except telebot.apihelper.ApiTelegramException as e:
+                    if "file is too big" in str(e):
+                        self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")
+                    else:
+                        self.bot.send_message(message.chat.id, f"Произошла ошибка при отправке видео: {str(e)}")
+            else:
+                self.bot.send_message(user_id, "Пожалуйста, отправьте видеофайл.")
+        else:
+            self.bot.send_message(user_id, "У вас недостаточно прав")

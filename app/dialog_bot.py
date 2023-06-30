@@ -333,9 +333,11 @@ class DialogBot:
                 if role == 'admin':
                     markup = self.moderation.admin_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'тектовая рассылка завершена')
                 else:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'тектовая рассылка завершена')
             else:
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав")
@@ -398,9 +400,11 @@ class DialogBot:
                 if role == 'admin':
                     markup = self.moderation.admin_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'рассылка документов завершена')
                 else:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'рассылка документов завершена')
             else:
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав")
@@ -543,12 +547,114 @@ class DialogBot:
                 if role == 'admin':
                     markup = self.moderation.admin_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'рассылка фото завершена')
                 else:
                     markup = self.moderation.moder_markup()                
                     self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    print(user_id, 'рассылка фото завершена')
             else:
                 self.database.clear_pending_command(user_id)
                 self.bot.send_message(user_id, "У вас недостаточно прав")
+
+        @self.bot.message_handler(func=lambda message: message.text == "Выгрузить пользователей")
+        def handle_moderation(message):
+            user_id = message.from_user.id
+            if self.database.user_exists_id(user_id):
+                print("Запрос пользователей")
+                self.moderation.get_users_excel(message)
+            else:
+                __handle_start(message)
+
+        #Если загружен документ
+        @self.bot.message_handler(content_types=['video'])
+        def handle_video_file(message):
+            user_id = message.from_user.id
+            if self.database.get_pending_command(user_id) == '/cd':
+                try:
+                    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                    select_groups_button = types.KeyboardButton(text="Группы видеорассылки")
+                    cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+                    markup.add(select_groups_button)
+                    markup.add(cancel_download_distribution_button)
+                    self.bot.send_message(message.chat.id, "Загружен файл:", reply_markup=markup) 
+                    self.distribution.handle_video_file(message)
+                except telebot.apihelper.ApiTelegramException as e:
+                    if "file is too big" in str(e):
+                        self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")
+                    else:
+                        self.bot.send_message(message.chat.id, f"Произошла ошибка при отправке видео: {str(e)}")
+        
+        #Обработка видео
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/svgg')
+        def select_video_groups(message):
+            if message.text == "Группы видеорассылки":
+                user_id = message.from_user.id
+                region_values = self.database.get_unique_column_values("region")
+                user_group_values = self.database.get_unique_column_values("user_group")
+                region_values_str = "\n".join(str(value) for value in region_values if value is not None)
+                user_group_values_str = "\n".join(str(value) for value in user_group_values if value is not None)
+                self.database.set_pending_command(user_id, '/svg')   
+                message_text = f"Введите через запятую группы для рассылки, например:\nТестовая, базовая, Москва\n\nЧтобы отправить всем авторизованным в боте пользователям, введите 'все'\n\nДоступные группы:\nРегионы:\n{region_values_str}\n\nГруппы:\n{user_group_values_str}"
+                self.bot.send_message(message.chat.id, message_text)
+                
+            elif message.text == "Завершить видеорассылку":
+                user_id = message.from_user.id            
+                role = self.database.get_user_role(user_id)
+                if role != "user":
+                    hide_keyboard = types.ReplyKeyboardRemove()
+                    self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
+                    distribution_id = self.database.get_latest_distribution_id()
+                    video_id = self.database.get_distribution_file_paths(distribution_id)[0]
+                    message_id = self.database.get_message_id_by_video_id(video_id)
+                    for userd_id in self.user_ids:
+                        try:
+                            self.bot.forward_message(userd_id, message.chat.id, message_id)  # Пересылаем сообщение с видео
+                            time.sleep(3)
+                            print(userd_id, 'видео доставлено')
+                        except telebot.apihelper.ApiTelegramException as e:
+                            if e.result.status_code == 403:
+                                # Пользователь заблокировал бота
+                                self.database.update_user_authorized(userd_id, 0)
+                                print(f"Пользователь с ID {userd_id} заблокировал бота")
+                                continue  # Продолжаем рассылку следующему пользователю
+                            else:
+                                print(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
+                                continue  # Продолжаем рассылку следующему пользователю       
+                    if role == 'admin':
+                        markup = self.moderation.admin_markup()                
+                        self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                    else:
+                        markup = self.moderation.moder_markup()                
+                        self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                else:
+                    self.database.clear_pending_command(user_id)
+                    self.bot.send_message(user_id, "У вас недостаточно прав")
+                self.database.clear_pending_command(user_id)
+        
+        #Получение пользователей определенных групп
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/svg')
+        def select_video_groups(message):
+            print("Создание рассылки с видео")
+            user_id = message.from_user.id
+            # Получение введенных слов из сообщения и разделение их по запятой
+            words = message.text.split(',')
+            words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
+
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+            finish_distribution_button = types.KeyboardButton(text="Завершить видеорассылку")
+            cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+            markup.add(finish_distribution_button)
+            markup.add(cancel_download_distribution_button)            
+
+            if "все" in words:
+                self.user_ids = [user[0] for user in self.database.get_users()]
+            else:
+                # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
+                self.user_ids = self.database.find_users_by_event_or_group(words)
+                self.user_ids = list(set(self.user_ids))
+            
+            self.database.set_pending_command(user_id, '/svgg')    
+            self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
 
         # Запуск бота
         self.bot.polling()

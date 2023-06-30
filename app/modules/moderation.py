@@ -2,6 +2,7 @@ from .database import Database
 import configparser
 import telebot
 import openpyxl
+from openpyxl import Workbook
 import os
 from telebot import types
 import re
@@ -20,6 +21,7 @@ class Moderation:
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
         add_data_button= types.KeyboardButton(text="Загрузить материалы")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
@@ -27,6 +29,7 @@ class Moderation:
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
         markup.add(add_users_button)
+        markup.add(get_users_button)
         markup.add(menu_button)
         return markup
 
@@ -36,10 +39,12 @@ class Moderation:
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         add_data_button= types.KeyboardButton(text="Загрузить материалы")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
         markup.add(add_data_button)
         markup.add(add_users_button)
+        markup.add(get_users_button)
         markup.add(menu_button)
         return markup
     
@@ -237,4 +242,71 @@ class Moderation:
             self.database.clear_pending_command(user_id)
         else:
             markup = self.user_markup()            
+            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+
+    def get_users_excel(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        markup = None
+
+        if role == "admin":
+            users = self.database.get_users_excel()
+
+            workbook = Workbook()
+            sheet = workbook.active
+
+            # Запись заголовков столбцов
+            sheet.cell(row=1, column=1, value="Phone Number")
+            sheet.cell(row=1, column=2, value="FIO")
+            sheet.cell(row=1, column=3, value="User Group")
+            sheet.cell(row=1, column=4, value="Region")
+
+            # Запись данных пользователей
+            for row, user in enumerate(users, start=2):
+                phone_number, fio, user_group, region = user
+                sheet.cell(row=row, column=1, value=phone_number)
+                sheet.cell(row=row, column=2, value=fio)
+                sheet.cell(row=row, column=3, value=user_group)
+                sheet.cell(row=row, column=4, value=region)
+
+            # Сохранение Excel файла
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+
+            # Построение полного пути к файлу фотографии
+            temp_dir = os.path.join(current_dir, 'temp')
+            exel_path = os.path.join(temp_dir, 'au_uasers.xlsx')
+            workbook.save(exel_path)
+
+            markup = self.admin_markup()
+            self.bot.send_message(user_id, "Файл с пользователями:", reply_markup=markup)
+            self.bot.send_document(user_id, document=open(exel_path, 'rb'))
+        elif role == "moderator":
+            users = self.database.get_users_excel()
+
+            workbook = Workbook()
+            sheet = workbook.active
+
+            # Запись заголовков столбцов
+            sheet.cell(row=1, column=1, value="Phone Number")
+            sheet.cell(row=1, column=2, value="FIO")
+            sheet.cell(row=1, column=3, value="User Group")
+            sheet.cell(row=1, column=4, value="Region")
+
+            # Запись данных пользователей
+            for row, user in enumerate(users, start=2):
+                phone_number, fio, user_group, region = user
+                sheet.cell(row=row, column=1, value=phone_number)
+                sheet.cell(row=row, column=2, value=fio)
+                sheet.cell(row=row, column=3, value=user_group)
+                sheet.cell(row=row, column=4, value=region)
+
+            # Сохранение Excel файла
+            output_path = "./temp/output.xlsx"
+            workbook.save(output_path)
+
+            markup = self.moder_markup()
+            self.bot.send_message(user_id, "Файл с пользователями:", reply_markup=markup)
+            self.bot.send_document(user_id, document=open(output_path, 'rb'))
+        else:
+            markup = self.user_markup()
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

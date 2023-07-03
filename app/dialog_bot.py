@@ -157,6 +157,7 @@ class DialogBot:
                     self.phone_number = None
                 logging.info(f"User ID: {user_id}, FIO: {message.text}")
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in handle_fio:")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке ФИО. Пожалуйста, повторите попытку позже.")
 
@@ -347,6 +348,7 @@ class DialogBot:
                     else:
                         __handle_start(message)
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in process_distribution_text:")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке рассылки. Пожалуйста, повторите попытку позже.")
         
@@ -396,6 +398,7 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in finish_text_distribution:")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке рассылки. Пожалуйста, повторите попытку позже.")
                 
@@ -479,6 +482,7 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in finish_document_distribution:")
                 self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
 
@@ -523,6 +527,7 @@ class DialogBot:
     
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in select_document_groups:")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
@@ -563,6 +568,7 @@ class DialogBot:
     
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in select_text_groups:")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
@@ -643,6 +649,7 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
+                self.database.clear_pending_command(user_id)
                 logging.exception("An error occurred in finish_photo_distribution:")
                 self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
 
@@ -726,6 +733,7 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                 except Exception as e:
                     logging.exception("An error occurred in finish_photo_distribution:")
+                    self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
         
         #Получение пользователей определенных групп

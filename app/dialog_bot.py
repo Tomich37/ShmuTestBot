@@ -97,7 +97,7 @@ class DialogBot:
                 # Отправляем в базу данных значения user_id и phone_number
                 self.database.set_user_data(user_id, self.phone_number)
     
-                print(user_id, self.phone_number)
+                logging.info(f"User ID {user_id}, Phone_number: {self.phone_number}, регистрация")
     
                 # Проверяем, существует ли пользователь в базе данных
                 if self.database.user_exists_phone(phone_number):
@@ -116,7 +116,6 @@ class DialogBot:
                     text = "Спасибо за регистрацию ❤️\n\nВ течение ближайших двух месяцев вы будете учиться работать в информационном пространстве в современных условиях с учетом специфики вашего региона.\n\nПервый вебинар состоится уже на этой неделе, не пропустите приглашение 🔥\n\nСкоро в боте появятся функции базы знаний, чтобы вы могли всегда найти самое важное ✅"
                     photo = open(photo_path, 'rb')
                     self.bot.send_photo(message.chat.id, photo, caption=text)
-                    print(user_role)
                     self.phone_number = None
                 else:
                     self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nНапример:\nИванов Иван\n\nЕсли введете данные в другом порядке, вы можете попасть не в ту группу.\n\nДля изменения введенных фамилии и имени введите команду /start")
@@ -248,7 +247,6 @@ class DialogBot:
                     self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
                 elif call.data.startswith('confirm_remove_mod_'):
                     phone_number = call.data.split('_')[3]
-                    print(phone_number)
                     self.database.remove_moderator(phone_number)
                     markup = self.moderation.admin_markup()
                     self.bot.send_message(call.message.chat.id, "Модератор снят", reply_markup=markup)
@@ -302,7 +300,7 @@ class DialogBot:
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
-            user_id = message.from_user.id
+            user_id = call.from_user.id
             try:
                 message_id = call.message.message_id
                 self.user.handle_button_click(call, message_id)
@@ -472,11 +470,11 @@ class DialogBot:
                     if role == 'admin':
                         markup = self.moderation.admin_markup()                
                         self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
-                        print(user_id, 'рассылка документов завершена')
+                        logging.info(f"User ID {user_id}: рассылка документов завершена")
                     else:
                         markup = self.moderation.moder_markup()                
                         self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
-                        print(user_id, 'рассылка документов завершена')
+                        logging.info(f"User ID {user_id}: рассылка документов завершена")
                 else:
                     self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "У вас недостаточно прав")
@@ -733,27 +731,31 @@ class DialogBot:
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/svg')
         def select_video_groups(message):
-            print("Создание рассылки с видео")
             user_id = message.from_user.id
-            # Получение введенных слов из сообщения и разделение их по запятой
-            words = message.text.split(',')
-            words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
+            try:
+                logging.info(f"User ID: {user_id}, создание рассылки с фото") 
+                # Получение введенных слов из сообщения и разделение их по запятой
+                words = message.text.split(',')
+                words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
 
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-            finish_distribution_button = types.KeyboardButton(text="Завершить видеорассылку")
-            cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
-            markup.add(finish_distribution_button)
-            markup.add(cancel_download_distribution_button)            
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                finish_distribution_button = types.KeyboardButton(text="Завершить видеорассылку")
+                cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+                markup.add(finish_distribution_button)
+                markup.add(cancel_download_distribution_button)            
 
-            if "все" in words:
-                self.user_ids = [user[0] for user in self.database.get_users()]
-            else:
-                # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
-                self.user_ids = self.database.find_users_by_event_or_group(words)
-                self.user_ids = list(set(self.user_ids))
-            
-            self.database.set_pending_command(user_id, '/svgg')    
-            self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
+                if "все" in words:
+                    self.user_ids = [user[0] for user in self.database.get_users()]
+                else:
+                    # Получение идентификаторов пользователей, удовлетворяющих условиям поиска
+                    self.user_ids = self.database.find_users_by_event_or_group(words)
+                    self.user_ids = list(set(self.user_ids))
+                
+                self.database.set_pending_command(user_id, '/svgg')    
+                self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
+            except Exception as e:
+                logging.exception("An error occurred in select_video_groups:")
+                self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
         # Запуск бота
         self.bot.polling()

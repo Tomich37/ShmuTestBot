@@ -308,3 +308,33 @@ class Database:
                     self.bot.send_photo(message.chat.id, photo, caption=text)
             conn.commit()
             return True
+    
+    def get_users_excel(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT phone_number, fio, user_group, region FROM users WHERE authorized = 1 AND id IS NOT NULL")
+            users = cursor.fetchall()
+            return users
+
+
+    def save_message_id(self, message_id, video_id, distribution_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            
+            query = "INSERT INTO distibution_files (message_id, file_path, distribution_id) VALUES (?, ?, ?);"
+            cursor.execute(query, (message_id, str(video_id), distribution_id))
+
+
+    def get_message_id_by_video_id(self, video_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            
+            query = "SELECT message_id FROM distibution_files WHERE file_path = ?;"
+            cursor.execute(query, (str(video_id),))
+            
+            result = cursor.fetchone()
+            if result:
+                return result[0]  # Возвращаем первое значение из результата (message_id)
+            else:
+                return None  # Если запись не найдена, возвращаем None

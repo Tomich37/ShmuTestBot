@@ -5,6 +5,7 @@ import configparser
 import telebot
 from telebot import types
 import pdb
+from telegram import MessageEntity
 
 class Distribution:
     def __init__(self, bot, save_directory, i):
@@ -33,8 +34,12 @@ class Distribution:
         self.i = 0
 
     # Обработчик текстовой рассылки
-    def create_distribution_text(self, user_id, text):
-        user_role = self.database.get_user_role(user_id)       
+    def create_distribution_text(self, message):
+        user_id = message.from_user.id
+        text = message.text
+        user_role = self.database.get_user_role(user_id)
+        text_entities = message.entities or []  # Получение форматирования текста во входном сообщении
+        entities = [types.MessageEntity(type=entity.type, offset=entity.offset, length=entity.length) for entity in text_entities]
 
         # Отправка рассылки
         distribution_id = self.database.save_distribution_text(text)
@@ -47,12 +52,20 @@ class Distribution:
                 cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
                 markup.add(select_groups_button)
                 markup.add(cancel_download_distribution_button)
-                self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", reply_markup=markup)            
+                
+                # Выделение отрывков, заключенных в знаки *
+                text_parts = text.split('*')
+                for i in range(1, len(text_parts), 2):
+                    text_parts[i] = f"<b>{text_parts[i]}</b>"
+                text = ''.join(text_parts)
+                
+                self.bot.send_message(user_id, text=f"Сообщение для рассылки:\n\n{text}", parse_mode='HTML', entities=entities, reply_markup=markup)
         else:
             self.bot.send_message(user_id, "Не удалось создать рассылку.")
 
         # Очистка команды ожидания после завершения рассылки
-        self.database.clear_pending_command(user_id)        
+        self.database.clear_pending_command(user_id)
+
 
     # Обработчик рассылки с фото
     def process_distribution_photo(self, message):
@@ -134,15 +147,21 @@ class Distribution:
                         media = types.InputMediaPhoto(file_data)
                         
                         if i == 0:
-                            media.caption = self.text  # Добавление подписи только для первого элемента
+                            # Добавление подписи только для первого элемента
+                            caption_parts = self.text.split('*')
+                            for j in range(1, len(caption_parts), 2):
+                                caption_parts[j] = f"<b>{caption_parts[j]}</b>"
+                            media.caption = ''.join(caption_parts)
                         
                         self.media_group.append(media)
 
                 # Отправка медиагруппы с текстом и фотографиями
+                for media in self.media_group:
+                    media.parse_mode = 'HTML'  # Применение HTML-разметки к подписям
                 self.bot.send_media_group(user_id, self.media_group)
                 self.database.clear_pending_command(user_id)
                 self.text = None
-                self.bot.send_message(user_id, "Рассылка подговтолена к отправке", reply_markup=markup)
+                self.bot.send_message(user_id, "Рассылка подготовлена к отправке", reply_markup=markup)
                 return self.media_group
         else:
             self.bot.send_message(user_id, "Не удалось создать рассылку.")
@@ -193,3 +212,47 @@ class Distribution:
         elif role == 'admin':
             markup = self.moderation.admin_markup()
             self.bot.send_message(user_id, "Рассылка отменена", reply_markup=markup)
+
+    def handle_video_file(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        self.database.clear_pending_command(user_id)
+        if role != 'user':
+            self.database.set_pending_command(user_id, '/svgg')
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+            select_groups_button = types.KeyboardButton(text="Группы видеорассылки")
+            cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+            markup.add(select_groups_button)
+            markup.add(cancel_download_distribution_button)
+    
+            video_file = message.video
+            if video_file is not None:
+                file_name = video_file.file_name
+                file_info = self.bot.get_file(video_file.file_id)
+    
+                # Определение пути к файлу
+                file_path = os.path.join(self.save_directory, file_name)
+                try:
+                    with open(file_path, "wb") as f:
+                        file_content = self.bot.download_file(file_info.file_path)
+                        f.write(file_content)
+        
+                    distribution_id = self.database.save_distribution_text(message.caption)
+                
+                    with open(file_path, 'rb') as video:
+                        sent_message = self.bot.send_video(message.chat.id, video, caption=message.caption)
+                    
+                    video_id = sent_message.video.file_id
+                    message_id  = sent_message.message_id
+                    self.database.save_message_id(message_id, video_id, distribution_id)
+    
+                    self.bot.send_message(message.chat.id, 'Видео загружено', reply_markup=markup)
+                except telebot.apihelper.ApiTelegramException as e:
+                    if "file is too big" in str(e):
+                        self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")
+                    else:
+                        self.bot.send_message(message.chat.id, f"Произошла ошибка при отправке видео: {str(e)}")
+            else:
+                self.bot.send_message(user_id, "Пожалуйста, отправьте видеофайл.")
+        else:
+            self.bot.send_message(user_id, "У вас недостаточно прав")

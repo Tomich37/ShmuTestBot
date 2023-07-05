@@ -8,8 +8,6 @@ from .modules.moderation import Moderation
 from .modules.user_staff import User
 from .modules.distribution import Distribution
 import os
-import sys
-import subprocess
 from telegram import MessageEntity
 
 # Установка пути к директории с лог-файлами
@@ -184,12 +182,11 @@ class DialogBot:
                 if self.database.user_exists_id(user_id):
                     if user_role != 'user':
                         self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
-                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\nfio - Фамилия, имя участника\n\nОпциональные столбцы:\nregion - регион\nuser_group - группа пользователей (0-6, буртный)")
+                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - имя\nlast_name - фамилия\nregion - регион\nuser_group - группа пользователей (Базовая, продвинутая, блогеры)")
                     else:
                         self.bot.send_message(user_id, "Недостаточно прав")
                 else:
                     __handle_start(message)
-                logging.info(f"User ID: {user_id}, Загрузка пользователей")
             except Exception as e:
                 logging.exception("An error occurred in handle_add_users:")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке добавления пользователей. Пожалуйста, повторите попытку позже.")
@@ -304,6 +301,7 @@ class DialogBot:
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
+            user_id = call.from_user.id
             try:
                 message_id = call.message.message_id
                 self.user.handle_button_click(call, message_id)
@@ -335,13 +333,15 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                     finish_text_distribution(message)
                 elif message.text == "Отменить рассылку":
+                    self.i = 0
+                    self.distribution.clear_i()
                     self.database.clear_pending_command(user_id)
                     cancel_distribution(message)
                 elif message.text == "Выбрать группы":
                     self.database.clear_pending_command(user_id)
                     select_groups_document_button(message)
                 elif message.text == "Завершить загрузку фото":
-                    self.database.clear_pending_command(user_id)
+                    self.distribution.clear_i()
                     final_photo_distribution(message)
                 else:
                     if self.database.user_exists_id(user_id):
@@ -467,9 +467,6 @@ class DialogBot:
                                 # Пользователь заблокировал бота
                                 self.database.update_user_authorized(userd_id, 0)
                                 logging.info(f"Пользователь с ID {userd_id} заблокировал бота")
-                                continue  # Продолжаем рассылку следующему пользователю
-                            elif e.result.status_code == 400:
-                                logging.info(f"Ошибка 400 при отправке сообщения пользователю с ID {userd_id}")   
                                 continue  # Продолжаем рассылку следующему пользователю
                             else:
                                 logging.exception(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
@@ -639,9 +636,6 @@ class DialogBot:
                                 self.database.update_user_authorized(userd_id, 0)
                                 logging.info(f"Пользователь с ID {userd_id} заблокировал бота")   
                                 continue  # Продолжаем рассылку следующему пользователю
-                            elif e.result.status_code == 400:
-                                logging.info(f"Ошибка 400 при отправке сообщения пользователю с ID {userd_id}")   
-                                continue  # Продолжаем рассылку следующему пользователю
                             else:
                                 logging.exception(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
                                 continue  # Продолжаем рассылку следующему пользователю       
@@ -688,12 +682,8 @@ class DialogBot:
                         logging.info(f"User_ID {user_id}: Слишком большое видео")
                         self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")
                     else:
-                        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-                        menu_button= types.KeyboardButton(text="Меню")
-                        markup.add(menu_button)  
-
                         logging.exception("An error occurred in handle_video_file:")
-                        self.bot.send_message(message.chat.id, "Произошла ошибка при отправке видео. Пожалуйста, повторите попытку позже.", reply_markup=markup)
+                        self.bot.send_message(message.chat.id, "Произошла ошибка при отправке видео. Пожалуйста, повторите попытку позже.")
         
         #Обработка видео
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/svgg')
@@ -709,8 +699,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, message_text)
                 
             elif message.text == "Завершить видеорассылку":
-                user_id = message.from_user.id       
-  
+                user_id = message.from_user.id           
                 try:
                     logging.info(f"User ID: {user_id}, создание рассылки с видео")  
                     role = self.database.get_user_role(user_id)
@@ -731,9 +720,6 @@ class DialogBot:
                                     self.database.update_user_authorized(userd_id, 0)
                                     logging.info(f"Пользователь с ID {userd_id} заблокировал бота")
                                     continue  # Продолжаем рассылку следующему пользователю
-                                elif e.result.status_code == 400:
-                                    logging.info(f"Ошибка 400 при отправке сообщения пользователю с ID {userd_id}")   
-                                    continue  # Продолжаем рассылку следующему пользователю
                                 else:
                                     logging.exception(f"Ошибка при отправке сообщения пользователю с ID {userd_id}: {e}")
                                     continue  # Продолжаем рассылку следующему пользователю       
@@ -748,29 +734,25 @@ class DialogBot:
                         self.bot.send_message(user_id, "У вас недостаточно прав")
                     self.database.clear_pending_command(user_id)
                 except Exception as e:
-                    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-                    menu_button= types.KeyboardButton(text="Меню")
-                    markup.add(menu_button)  
-
                     logging.exception("An error occurred in finish_photo_distribution:")
                     self.database.clear_pending_command(user_id)
-                    self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.", reply_markup=markup)
+                    self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
         
         #Получение пользователей определенных групп
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/svg')
         def select_video_groups(message):
             user_id = message.from_user.id
-
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-            finish_distribution_button = types.KeyboardButton(text="Завершить видеорассылку")
-            cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
-            markup.add(finish_distribution_button)
-            markup.add(cancel_download_distribution_button)
             try:
                 logging.info(f"User ID: {user_id}, создание рассылки с фото") 
                 # Получение введенных слов из сообщения и разделение их по запятой
                 words = message.text.split(',')
                 words = [word.strip().rstrip(',') for word in words]  # Удаление лишних пробелов
+
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+                finish_distribution_button = types.KeyboardButton(text="Завершить видеорассылку")
+                cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
+                markup.add(finish_distribution_button)
+                markup.add(cancel_download_distribution_button)            
 
                 if "все" in words:
                     self.user_ids = [user[0] for user in self.database.get_users()]
@@ -783,26 +765,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
                 logging.exception("An error occurred in select_video_groups:")
-                self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.", reply_markup=markup)
-
-
-        @self.bot.message_handler(commands=['restart'])
-        def restart_bot(message):
-            user_id = message.from_user.id
-            try:
-                if user_id == 312116430:
-                    # Выполнение перезагрузки бота
-                    self.bot.send_message(message.chat.id, "Перезагрузка бота...")
-                    python = sys.executable
-                    logging.info(f"User ID: {user_id}, рестарт бота")
-                    sys.exit(subprocess.call([python] + sys.argv))                       
-                else:
-                    logging.info(f"User ID: {user_id}, нет прав для рестарта")   
-            except Exception as e:
-                logging.exception("An error occurred in restart_bot:")
-                self.bot.send_message(user_id, "Ошибка при рестарте")
-
-
+                self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
         # Запуск бота
         self.bot.polling()

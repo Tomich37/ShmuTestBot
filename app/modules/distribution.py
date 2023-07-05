@@ -6,6 +6,7 @@ import telebot
 from telebot import types
 import pdb
 from telegram import MessageEntity
+import datetime
 
 class Distribution:
     def __init__(self, bot, save_directory, i):
@@ -73,6 +74,7 @@ class Distribution:
         user_role = self.database.get_user_role(user_id)
         distribution_id = None  # Инициализация переменной distribution_id
         file_path = None  # Инициализация переменной file_path
+        print(self.i)
 
         if self.i == 0:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
@@ -226,26 +228,32 @@ class Distribution:
     
             video_file = message.video
             if video_file is not None:
-                file_name = video_file.file_name
+                if video_file.file_name is not None:
+                    file_name = video_file.file_name
+                else:
+                    # Если file_name равен None, присваиваем альтернативное имя
+                    current_datetime = datetime.datetime.now()
+                    file_name = f"video_{current_datetime.strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
+                
                 file_info = self.bot.get_file(video_file.file_id)
-    
+
                 # Определение пути к файлу
                 file_path = os.path.join(self.save_directory, file_name)
                 try:
                     with open(file_path, "wb") as f:
                         file_content = self.bot.download_file(file_info.file_path)
                         f.write(file_content)
-        
+                
                     distribution_id = self.database.save_distribution_text(message.caption)
                 
                     with open(file_path, 'rb') as video:
                         sent_message = self.bot.send_video(message.chat.id, video, caption=message.caption)
                     
                     video_id = sent_message.video.file_id
-                    message_id  = sent_message.message_id
+                    message_id = sent_message.message_id
                     self.database.save_message_id(message_id, video_id, distribution_id)
-    
-                    self.bot.send_message(message.chat.id, 'Видео загружено', reply_markup=markup)
+
+                    self.bot.send_message(message.chat.id, 'Ожидайте загрузки видео', reply_markup=markup)
                 except telebot.apihelper.ApiTelegramException as e:
                     if "file is too big" in str(e):
                         self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")

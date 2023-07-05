@@ -279,7 +279,7 @@ class Moderation:
 
             markup = self.admin_markup()
             self.bot.send_message(user_id, "Файл с пользователями:", reply_markup=markup)
-            self.bot.send_document(user_id, document=open(exel_path, 'rb'))
+            self.bot.send_document(user_id, open(exel_path, 'rb'))
         elif role == "moderator":
             users = self.database.get_users_excel()
 
@@ -306,7 +306,7 @@ class Moderation:
 
             markup = self.moder_markup()
             self.bot.send_message(user_id, "Файл с пользователями:", reply_markup=markup)
-            self.bot.send_document(user_id, document=open(output_path, 'rb'))
+            self.bot.send_document(user_id, open(output_path, 'rb'))
         else:
             markup = self.user_markup()
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)

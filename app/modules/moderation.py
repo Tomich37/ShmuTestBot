@@ -9,7 +9,7 @@ import re
 
 class Moderation:
     def __init__(self, bot, save_directory):   
-        self.database = Database(bot)     
+        self.database = Database(bot, self.menu_markup)     
         self.bot = bot        
         self.save_directory = save_directory
 
@@ -52,6 +52,12 @@ class Moderation:
     def user_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="События")
+        markup.add(distribution_button)
+        return markup
+
+    def menu_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        distribution_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
         return markup
 
@@ -295,6 +301,10 @@ class Moderation:
             # Запись данных пользователей
             for row, user in enumerate(users, start=2):
                 phone_number, fio, user_group, region = user
+
+                # Удаление пробелов в конце значения fio
+                fio = fio.strip()
+
                 sheet.cell(row=row, column=1, value=phone_number)
                 sheet.cell(row=row, column=2, value=fio)
                 sheet.cell(row=row, column=3, value=user_group)

@@ -10,7 +10,7 @@ import datetime
 
 class Distribution:
     def __init__(self, bot, save_directory, i):
-        self.database = Database(bot)
+        self.database = Database(bot, self.menu_markup)
         self.moderation = Moderation(bot, save_directory)
         self.bot = bot
         self.save_directory = save_directory
@@ -24,6 +24,12 @@ class Distribution:
         self.distribution_id = self.database.get_latest_distribution_id()
         text = self.database.send_distribution_text(self.distribution_id)
         return text
+    
+    def menu_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        distribution_button= types.KeyboardButton(text="Меню")
+        markup.add(distribution_button)
+        return markup
     
     def clear_file_paths(self):
         self.file_paths = []
@@ -253,7 +259,7 @@ class Distribution:
                     message_id = sent_message.message_id
                     self.database.save_message_id(message_id, video_id, distribution_id)
 
-                    self.bot.send_message(message.chat.id, 'Ожидайте загрузки видео', reply_markup=markup)
+                    self.bot.send_message(message.chat.id, 'Видео загружено', reply_markup=markup)
                 except telebot.apihelper.ApiTelegramException as e:
                     if "file is too big" in str(e):
                         self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")

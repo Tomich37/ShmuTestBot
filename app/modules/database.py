@@ -3,17 +3,18 @@ import re
 import os
 
 class Database:
-    def __init__(self, bot):
+    def __init__(self, bot, menu_markup):
     
         # Чтение файла конфигурации
         config = configparser.ConfigParser()
         config.read('./config.ini')
         self.bot = bot
+        self.menu_markup = menu_markup
 
         # Получение пути к файлу базы данных из файла конфигурации
         self.db_path_events = config.get('default', 'db_path_events')
         self.db_path_users = config.get('default', 'db_path_users')
-
+    
     # Получение данных о пользователе из message_handler в dialog_bot    
     def set_user_data(self, user_id, phone_number):
         self.user_id = user_id
@@ -34,7 +35,7 @@ class Database:
             result = cursor.fetchone()
         return result is not None
     
-    # Выдача информации по пользователю
+    # Выдача информации по пользователю (для назначения/удаления админа), !!!переписать!!!
     def user_info(self, phone_number):
         if self.user_exists_phone(phone_number):
             with self.get_database_connection_users() as conn:
@@ -56,6 +57,8 @@ class Database:
     
     # Обновление записи пользователя в БД users
     def update_user(self, user_id, phone_number):
+        phone_number = re.sub(r'\D', '', phone_number)
+        print(phone_number)
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM users WHERE phone_number = ? AND user_id IS NULL", (phone_number,))
@@ -63,6 +66,10 @@ class Database:
             if result[0] > 0:
                 cursor.execute("UPDATE users SET user_id=?, authorized=? WHERE phone_number=?", (user_id, True, phone_number))
                 conn.commit()
+                print(f"User ID: {user_id}, Phone Number: {phone_number}, updated successfully")
+            else:
+                print("User ID not updated or phone number does not exist")
+
 
     #Добавление нового пользователя в БД users    
     def add_user(self, user_id, phone_number, first_name, last_name, user_role):
@@ -247,6 +254,7 @@ class Database:
             unique_values = [row[0] for row in result]
             return unique_values
 
+    # Регистрация новых участников
     def handle_fio(self, message, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -289,6 +297,8 @@ class Database:
                     photo = open(photo_path, 'rb')
                     self.bot.send_photo(message.chat.id, photo, caption=text)
 
+                    markup = self.menu_markup()                    
+                    self.bot.send_message(message.chat.id, "Вам теперь доступен функционал бота", reply_markup=markup)
             else:
                 # Проверка, что значение номера телефона отсутствует в таблице
                 cursor.execute("SELECT COUNT(*) FROM users WHERE phone_number = ?", (phone_number,))
@@ -309,15 +319,16 @@ class Database:
             conn.commit()
             return True
     
+    # Получение данных участников для выгрузки в exel
     def get_users_excel(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("SELECT phone_number, fio, user_group, region FROM users WHERE authorized = 1 AND id IS NOT NULL")
+            cursor.execute("SELECT phone_number, fio, user_group, region FROM users WHERE authorized = 1 AND user_id IS NOT NULL")
             users = cursor.fetchall()
             return users
 
-
+    # Сохранения id сообщения для перессылки видео
     def save_message_id(self, message_id, video_id, distribution_id):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -325,7 +336,7 @@ class Database:
             query = "INSERT INTO distibution_files (message_id, file_path, distribution_id) VALUES (?, ?, ?);"
             cursor.execute(query, (message_id, str(video_id), distribution_id))
 
-
+    # Получение id изначального сообщения по пути видео
     def get_message_id_by_video_id(self, video_id):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -335,6 +346,22 @@ class Database:
             
             result = cursor.fetchone()
             if result:
-                return result[0]  # Возвращаем первое значение из результата (message_id)
+                return result[0]  # Return the first value from the result (message_id)
             else:
-                return None  # Если запись не найдена, возвращаем None
+                return None  # If no record found, return None
+
+    # Получение группы пользователя
+    def get_user_group(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            
+            query = "SELECT user_group FROM users WHERE user_id = ?;"
+            cursor.execute(query, (user_id,))
+            
+            result = cursor.fetchone()
+            if result:
+                return result[0]  # Return the first value from the result (message_id)
+            else:
+                return None  # If no record found, return None
+            
+

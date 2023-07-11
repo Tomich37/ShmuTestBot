@@ -5,38 +5,37 @@ from telebot import types
 
 
 class User:
-    def __init__(self, bot, database, authorized_user):
+    def __init__(self, bot, database):
         self.bot = bot
         self.database = database
         self.current_position = 0
         self.block_size = 5  # Здесь можно указать желаемый размер блока мероприятий
-        self.authorized_user = authorized_user  # Add authorized_user attribute and assign its value
 
 
-    def events_handler(self, message):
-        if self.authorized_user:  # Проверка на авторизацию
-            # Получение информации из events.db
-            events_list = self.database.get_events()
+    # def events_handler(self, message):
+    #     if self.authorized_user:  # Проверка на авторизацию
+    #         # Получение информации из events.db
+    #         events_list = self.database.get_events()
 
-            if self.current_position >= len(events_list):
-                self.bot.send_message(message.chat.id, "Больше нет мероприятий.")
-            else:
-                events_to_display = events_list[self.current_position : self.current_position + self.block_size]
-                response = "Мероприятия: \n\n"
-                for event in events_to_display:
-                    response += f"Дата: {event[0]}\n"
-                    response += f"Место проведения: {event[1]}\n"
-                    response += f"Мероприятие: {event[2]}\n\n"
-                self.bot.send_message(message.chat.id, response, reply_markup=self.get_pagination_buttons())
-        else:
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
-            markup.add(contact_button)
-            self.bot.send_message(
-                message.chat.id,
-                "Вы не авторизировались, для продолжения предоставьте номер телефона",
-                reply_markup=markup,
-            )
+    #         if self.current_position >= len(events_list):
+    #             self.bot.send_message(message.chat.id, "Больше нет мероприятий.")
+    #         else:
+    #             events_to_display = events_list[self.current_position : self.current_position + self.block_size]
+    #             response = "Мероприятия: \n\n"
+    #             for event in events_to_display:
+    #                 response += f"Дата: {event[0]}\n"
+    #                 response += f"Место проведения: {event[1]}\n"
+    #                 response += f"Мероприятие: {event[2]}\n\n"
+    #             self.bot.send_message(message.chat.id, response, reply_markup=self.get_pagination_buttons())
+    #     else:
+    #         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    #         contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
+    #         markup.add(contact_button)
+    #         self.bot.send_message(
+    #             message.chat.id,
+    #             "Вы не авторизировались, для продолжения предоставьте номер телефона",
+    #             reply_markup=markup,
+    #         )
 
     def get_pagination_buttons(self):
         markup = types.InlineKeyboardMarkup()
@@ -104,3 +103,20 @@ class User:
             call.message.message_id,
             reply_markup=self.get_pagination_buttons(),
         )
+    
+    # Выдача материалов в зависимости от группы
+    def get_materials(self, message):
+        user_id = message.from_user.id
+        user_group = self.database.get_user_group(user_id)
+        if self.database.user_exists_id(user_id):
+            if user_group in ['1', '2', 'буртный']:
+                self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/5pdekJ2JN_l4fw")
+            elif user_group in ['3', '4']:
+                self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/a-pugligE5KB-g")
+            elif user_group in ['5', '6']:
+                self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/XXmAn0JaFZKRVw")
+            else:
+                self.bot.send_message(message.chat.id, "К сожалению Вас нет в списке. Ожидайте авторизации модераторами мероприятия.")
+        else:
+            self.bot.send_message(user_id, "К сожалению Вас нет в списке. Ожидайте авторизации модераторами мероприятия.")
+        

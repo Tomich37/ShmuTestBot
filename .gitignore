@@ -6,3 +6,4 @@ app/modules/db/*
 app/modules/temp/*
 app/modules/media/*
 app/logs/*
+*.code-workspace

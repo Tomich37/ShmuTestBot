@@ -42,13 +42,10 @@ class DialogBot:
         self.save_directory = config.get('default', 'save_directory')
 
         # Создание экземпляра класса Database
-        self.database = Database(self.bot) 
-        self.user = User(self.bot, self.database, authorized_user=False)  # Pass authorized_user=False
+        self.database = Database(self.bot, self.menu_markup) 
+        self.user = User(self.bot, self.database)  # Pass authorized_user=False
         self.moderation = Moderation(self.bot, self.save_directory)
         self.distribution = Distribution(self.bot, self.save_directory, self.i)
-
-        # Переменная для отслеживания авторизации user
-        self.authorized_user = False
 
     @staticmethod
     def admin_markup():
@@ -57,12 +54,18 @@ class DialogBot:
         markup.add(add_moderator_button)
         return markup
 
-    # @staticmethod
-    # def user_markup():
-    #     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-    #     distribution_button= types.KeyboardButton(text="События")
-    #     markup.add(distribution_button)
-    #     return markup
+    @staticmethod
+    def user_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        distribution_button= types.KeyboardButton(text="Материалы")
+        markup.add(distribution_button)
+        return markup
+
+    def menu_markup(self):
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        distribution_button= types.KeyboardButton(text="Меню")
+        markup.add(distribution_button)
+        return markup
 
     def run(self):
         # Показывает меню с кнопками
@@ -103,7 +106,6 @@ class DialogBot:
                 if self.database.user_exists_phone(phone_number):
                     # Обновляем запись существующего пользователя
                     self.database.update_user(user_id, phone_number)
-                    self.authorized_user = True
                     # Переменная для получения роли пользователя
                     user_role = self.database.get_user_role(user_id)
                     # Получение пути к текущему скрипту
@@ -116,6 +118,8 @@ class DialogBot:
                     text = "Спасибо за регистрацию ❤️\n\nВ течение ближайших двух месяцев вы будете учиться работать в информационном пространстве в современных условиях с учетом специфики вашего региона.\n\nПервый вебинар состоится уже на этой неделе, не пропустите приглашение 🔥\n\nСкоро в боте появятся функции базы знаний, чтобы вы могли всегда найти самое важное ✅"
                     photo = open(photo_path, 'rb')
                     self.bot.send_photo(message.chat.id, photo, caption=text)
+                    markup = self.menu_markup()                    
+                    self.bot.send_message(message.chat.id, "Вам теперь доступен функционал бота", reply_markup=markup)
                     self.phone_number = None
                 else:
                     self.bot.send_message(message.chat.id, "Прошу ввести данные в следующем порядке:\n1. Фамилия\n2. Имя\n\nНапример:\nИванов Иван\n\nЕсли введете данные в другом порядке, вы можете попасть не в ту группу.\n\nДля изменения введенных фамилии и имени введите команду /start")
@@ -131,14 +135,10 @@ class DialogBot:
                     self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
                     self.bot.clear_reply_handlers(message)
                 elif user_role == "user":
-                        self.bot.clear_reply_handlers(message)
-                else:
                     self.bot.clear_reply_handlers(message)
-    
-                # Обновляем атрибут authorized_user в экземпляре класса User
-                self.user.authorized_user = self.authorized_user
-                
-                logging.info(f"User ID: {user_id}, Phone Number: {phone_number}")
+                else:                    
+                    self.bot.clear_reply_handlers(message)
+                    
             except Exception as e:
                 # Запись исключения в лог с указанием traceback
                 logging.exception("Произошла ошибка")
@@ -195,10 +195,16 @@ class DialogBot:
         def handle_menu(message):
             try:
                 user_id = message.from_user.id
-                user_role = user_role = self.database.get_user_role(user_id)
+                user_role = self.database.get_user_role(user_id)
                 if self.database.user_exists_id(user_id):
                     if user_role != 'user':
                         markup = self.admin_markup()
+                        self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+                    elif user_role == 'user':
+                        markup = self.user_markup()
+                        self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+                    else:
+                        markup = self.moderation.moder_markup()
                         self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
                 else:
                     __handle_start(message)
@@ -333,13 +339,15 @@ class DialogBot:
                     self.database.clear_pending_command(user_id)
                     finish_text_distribution(message)
                 elif message.text == "Отменить рассылку":
+                    self.i = 0
+                    self.distribution.clear_i()
                     self.database.clear_pending_command(user_id)
                     cancel_distribution(message)
                 elif message.text == "Выбрать группы":
                     self.database.clear_pending_command(user_id)
                     select_groups_document_button(message)
                 elif message.text == "Завершить загрузку фото":
-                    self.database.clear_pending_command(user_id)
+                    self.distribution.clear_i()
                     final_photo_distribution(message)
                 else:
                     if self.database.user_exists_id(user_id):
@@ -374,7 +382,8 @@ class DialogBot:
     
                     for userd_id in self.user_ids:
                         try:
-                            self.bot.send_message(userd_id, text, parse_mode='HTML', entities=entities)
+                            markup = self.user_markup()
+                            self.bot.send_message(userd_id, text, parse_mode='HTML', entities=entities, reply_markup=markup)
                             logging.info(f"User ID: {userd_id}, успешная доставка текста") 
                             time.sleep(3)
                         except telebot.apihelper.ApiTelegramException as e:
@@ -453,6 +462,7 @@ class DialogBot:
                     hide_keyboard = types.ReplyKeyboardRemove()
                     self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
                     for userd_id in self.user_ids:
+                        markup = self.user_markup()
                         try:
                             self.bot.send_message(userd_id, "Документы:")
                             for file_path in file_paths:
@@ -624,6 +634,7 @@ class DialogBot:
                     hide_keyboard = types.ReplyKeyboardRemove()
                     self.bot.send_message(user_id, "Производится рассылка, ожидайте уведомления о ее завершении", reply_markup=hide_keyboard)
                     for userd_id in self.user_ids:
+                        markup = self.user_markup()
                         try:
                             message = self.bot.send_media_group(userd_id, self.photo_group)
                             time.sleep(3)
@@ -653,6 +664,7 @@ class DialogBot:
                 logging.exception("An error occurred in finish_photo_distribution:")
                 self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
 
+        # Обработка кнопки "Выгрузить пользователей"
         @self.bot.message_handler(func=lambda message: message.text == "Выгрузить пользователей")
         def handle_moderation(message):
             user_id = message.from_user.id
@@ -668,12 +680,8 @@ class DialogBot:
             user_id = message.from_user.id
             if self.database.get_pending_command(user_id) == '/cd':
                 try:
-                    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-                    select_groups_button = types.KeyboardButton(text="Группы видеорассылки")
-                    cancel_download_distribution_button = types.KeyboardButton(text="Отменить рассылку")
-                    markup.add(select_groups_button)
-                    markup.add(cancel_download_distribution_button)
-                    self.bot.send_message(message.chat.id, "Загружен файл:", reply_markup=markup) 
+                    hide_keyboard = types.ReplyKeyboardRemove()
+                    self.bot.send_message(message.chat.id, 'Ожидайте загрузки видео', reply_markup=hide_keyboard)
                     self.distribution.handle_video_file(message)
                 except telebot.apihelper.ApiTelegramException as e:
                     if "file is too big" in str(e):
@@ -764,6 +772,18 @@ class DialogBot:
             except Exception as e:
                 logging.exception("An error occurred in select_video_groups:")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
+        
+        # Обработка кнопки "Материалы"
+        @self.bot.message_handler(func=lambda message: message.text == 'Материалы')
+        def get_materials(message):
+            user_id = message.from_user.id
+            try:
+                logging.info(f"User ID: {user_id}, получение материалов") 
+                self.user.get_materials(message)
+            except Exception as e:
+                logging.exception("An error occurred in get_materials:")
+                self.bot.send_message(user_id, "Ошибка при отправке материалов. Пожалуйста, повторите попытку позже")
+
 
         # Запуск бота
         self.bot.polling()

@@ -80,7 +80,6 @@ class Distribution:
         user_role = self.database.get_user_role(user_id)
         distribution_id = None  # Инициализация переменной distribution_id
         file_path = None  # Инициализация переменной file_path
-        print(self.i)
 
         if self.i == 0:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)

@@ -15,7 +15,7 @@ logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 os.makedirs(logs_dir, exist_ok=True)
 
 # Определение текущей даты
-current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+current_date = time.strftime("%Y-%m-%d", time.localtime())
 
 # Настройка формата записей лога
 log_format = "%(asctime)s - %(levelname)s - %(message)s"

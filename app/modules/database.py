@@ -58,7 +58,6 @@ class Database:
     # Обновление записи пользователя в БД users
     def update_user(self, user_id, phone_number):
         phone_number = re.sub(r'\D', '', phone_number)
-        print(phone_number)
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM users WHERE phone_number = ? AND user_id IS NULL", (phone_number,))
@@ -66,7 +65,6 @@ class Database:
             if result[0] > 0:
                 cursor.execute("UPDATE users SET user_id=?, authorized=? WHERE phone_number=?", (user_id, True, phone_number))
                 conn.commit()
-                print(f"User ID: {user_id}, Phone Number: {phone_number}, updated successfully")
             else:
                 print("User ID not updated or phone number does not exist")
 

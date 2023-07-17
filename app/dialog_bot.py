@@ -87,7 +87,6 @@ class DialogBot:
 
             self.bot.send_message(message.chat.id, "Для авторизации прошу поделиться вашим номером телефона", reply_markup=markup)
 
-
         # Обработчик получения контакта
         @self.bot.message_handler(content_types=['contact'])
         def __handle_contact(message):

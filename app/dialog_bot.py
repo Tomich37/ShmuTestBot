@@ -8,18 +8,21 @@ from .modules.moderation import Moderation
 from .modules.user_staff import User
 from .modules.distribution import Distribution
 import os
-from telegram import MessageEntity
+import datetime
 
 # Установка пути к директории с лог-файлами
 logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 os.makedirs(logs_dir, exist_ok=True)
+
+# Определение текущей даты
+current_date = time.strftime("%Y-%m-%d", time.localtime())
 
 # Настройка формата записей лога
 log_format = "%(asctime)s - %(levelname)s - %(message)s"
 date_format = "%Y-%m-%d %H:%M:%S"
 
 # Настройка файла для записи логов
-log_file = os.path.join(logs_dir, "app.log")
+log_file = os.path.join(logs_dir, f"app_{current_date}.log")
 
 # Настройка уровня логирования
 log_level = logging.INFO  # Выбор нужного уровня логирования (INFO, WARNING, ERROR, CRITICAL)

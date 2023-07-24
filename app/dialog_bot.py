@@ -66,7 +66,9 @@ class DialogBot:
     def user_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="Материалы")
+        review_button= types.KeyboardButton(text="Оставить отзыв")
         markup.add(distribution_button)
+        markup.add(review_button)
         return markup
 
     def menu_markup(self):
@@ -293,24 +295,6 @@ class DialogBot:
             except Exception as e:
                 logger.exception("An error occurred in remove_mod:")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке команды. Пожалуйста, повторите попытку позже.")
-
-        # Вызов функции events при получении сообщения "События"
-        # @self.bot.message_handler(func=lambda message: message.text == "События")
-        # def __handle_events_button(message):
-        #     user_id = message.from_user.id
-        #     if self.database.user_exists_id(user_id):
-        #         self.user.events_handler(message)
-        #     else:
-        #         __handle_start(message)
-
-        # Обработчик команды /events
-        # @self.bot.message_handler(commands=['events'])
-        # def __handle_events_command(message):
-        #     user_id = message.from_user.id
-        #     if self.database.user_exists_id(user_id):
-        #         self.user.events_handler(message)
-        #     else:
-        #         __handle_start(message)
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
@@ -790,7 +774,17 @@ class DialogBot:
             except Exception as e:
                 logger.exception("An error occurred in get_materials:")
                 self.bot.send_message(user_id, "Ошибка при отправке материалов. Пожалуйста, повторите попытку позже")
-
+        
+        # Обработка кнопки "Оставить отзыв"
+        @self.bot.message_handler(func=lambda message: message.text == 'Оставить отзыв')
+        def get_review(message):
+            user_id = message.from_user.id
+            try:
+                logger.info(f"User ID: {user_id}, получение отзыва") 
+                self.user.get_review(message)
+            except Exception as e:
+                logger.exception("An error occurred in get_materials:")
+                self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
         # Запуск бота
         self.bot.polling()

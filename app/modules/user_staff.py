@@ -11,32 +11,6 @@ class User:
         self.current_position = 0
         self.block_size = 5  # Здесь можно указать желаемый размер блока мероприятий
 
-
-    # def events_handler(self, message):
-    #     if self.authorized_user:  # Проверка на авторизацию
-    #         # Получение информации из events.db
-    #         events_list = self.database.get_events()
-
-    #         if self.current_position >= len(events_list):
-    #             self.bot.send_message(message.chat.id, "Больше нет мероприятий.")
-    #         else:
-    #             events_to_display = events_list[self.current_position : self.current_position + self.block_size]
-    #             response = "Мероприятия: \n\n"
-    #             for event in events_to_display:
-    #                 response += f"Дата: {event[0]}\n"
-    #                 response += f"Место проведения: {event[1]}\n"
-    #                 response += f"Мероприятие: {event[2]}\n\n"
-    #             self.bot.send_message(message.chat.id, response, reply_markup=self.get_pagination_buttons())
-    #     else:
-    #         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    #         contact_button = types.KeyboardButton(text="Поделиться телефоном", request_contact=True)
-    #         markup.add(contact_button)
-    #         self.bot.send_message(
-    #             message.chat.id,
-    #             "Вы не авторизировались, для продолжения предоставьте номер телефона",
-    #             reply_markup=markup,
-    #         )
-
     def get_pagination_buttons(self):
         markup = types.InlineKeyboardMarkup()
         next_button = types.InlineKeyboardButton("Следующие", callback_data="next")
@@ -119,4 +93,12 @@ class User:
                 self.bot.send_message(message.chat.id, "К сожалению Вас нет в списке. Ожидайте авторизации модераторами мероприятия.")
         else:
             self.bot.send_message(user_id, "К сожалению Вас нет в списке. Ожидайте авторизации модераторами мероприятия.")
-        
+    
+    def get_review(self, message):
+        user_id = message.from_user.id
+        url_button = types.InlineKeyboardButton("Оставить отзыв", url = "https://forms.yandex.ru/u/64ba8061c417f32ee117af59/")
+
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.add(url_button)
+
+        self.bot.send_message(user_id, "Нажмите на кнопку чтоб оставить отзыв", reply_markup = keyboard)

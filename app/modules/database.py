@@ -46,7 +46,15 @@ class Database:
         else:
             result = False
             return result
-    
+        
+    # Выдача информации о пользователе по ФИО 
+    def user_info_fio(self, fio):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT phone_number, user_id, fio, role FROM users WHERE fio LIKE ?", (fio + '%',))
+            result = cursor.fetchone()
+        return result
+
     # Проверка роли пользователя
     def get_user_role(self, user_id):
         with self.get_database_connection_users() as conn:

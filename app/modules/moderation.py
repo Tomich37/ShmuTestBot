@@ -34,7 +34,7 @@ class Moderation:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
         get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
-        users_edit= types.KeyboardButton(text="Отредактировать пользователя")
+        users_edit= types.KeyboardButton(text="Редактирование пользователя")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(add_users_button)
         markup.add(get_users_button)
@@ -325,26 +325,28 @@ class Moderation:
     def edit_user(self, message):
         user_id = message.from_user.id
         role = self.database.get_user_role(user_id)
-        fio = message.text
+        fio = message.text.lower()
         if role != "user":
             user_info = self.database.user_info_fio(fio)
             if user_info is not None:
                 # Формируем сообщение с информацией о пользователе
-                print(user_info)
-                user_message = f"ФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}"
+                user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
 
                 phone_number = user_info[0]
+                self.database.temp_phone_number(user_id, phone_number)
                 
                 # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
                 keyboard = types.InlineKeyboardMarkup()
-                confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_edit_user_{phone_number}")
-                cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_edit_user")
-                keyboard.add(confirm_remove_mod_button, cancel_remove_mod_button)
+                edit_user_fio_button = types.InlineKeyboardButton(text="ФИО", callback_data=f"edit_user_fio_{phone_number}")
+                edit_user_region_button = types.InlineKeyboardButton(text="Регион", callback_data=f"edit_user_region_{phone_number}")
+                edit_user_group_button = types.InlineKeyboardButton(text="Группа", callback_data=f"edit_user_group_{phone_number}")
+                cancel_edit_user = types.InlineKeyboardButton(text="Готово", callback_data="edit_user_cancel")
+                keyboard.add(edit_user_fio_button, edit_user_region_button, edit_user_group_button, cancel_edit_user)
 
                 # Отправляем сообщение с клавиатурой
                 self.bot.send_message(user_id, user_message, reply_markup=keyboard)
             else:
-                self.database.clear_pending_command()
+                self.database.clear_pending_command(user_id)
                 markup = self.menu_markup()
                 self.bot.send_message(user_id, "Пользователь не найден", reply_markup=markup)
         else:

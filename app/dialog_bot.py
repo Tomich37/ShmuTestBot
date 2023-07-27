@@ -253,6 +253,43 @@ class DialogBot:
                 logger.exception("An error occurred in add_moderator_button:")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при добавлении модератора. Пожалуйста, повторите попытку позже.")
 
+        # Обработка кнопок редактирования пользователя
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('edit_user_'))
+        def handle_edit_user_buttons(call):
+            user_id = call.from_user.id
+            action = call.data.split('_')[2]  # Получаем действие из callback-данных     
+            try:
+                if action == 'fio':
+                    self.database.set_pending_command(user_id, '/eufio')
+                    self.bot.send_message(user_id, "Введите новое ФИО")
+
+                elif action == 'region':
+                    self.database.set_pending_command(user_id, '/euregion')
+                    self.bot.send_message(user_id, "Введите новый регион")
+
+                elif action == 'group':
+                    self.database.set_pending_command(user_id, '/eugroup')
+                    self.bot.send_message(user_id, "Введите новую группу")
+
+                elif action == 'cancel':
+                    self.database.get_temp_phone_number(user_id)
+                    phone_number = self.database.get_temp_phone_number(user_id)
+                    user_info = self.database.user_info_phone_number(phone_number)
+                    markup = self.menu_markup()
+                    self.database.clear_pending_command(user_id)
+                    self.database.clear_temp_phone_number(user_id)
+                    self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+                    user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
+
+                    self.bot.send_message(user_id, user_message, reply_markup=markup)
+
+                else:
+                    # Неизвестное действие, обработка ошибки или другие действия по вашему усмотрению
+                    self.bot.send_message(user_id, "Неизвестное действие")
+            except Exception as e:
+                logger.exception("An error occurred in handle_edit_user_buttons:")
+                self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
+
         # Кнопки подтверждения/отмены
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_button_click(call):
@@ -277,6 +314,7 @@ class DialogBot:
                 logger.exception("An error occurred in handle_button_click:")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
+
         # Вызов функции add_moderator при получении сообщения "Снять с поста модератора"
         @self.bot.message_handler(func=lambda message: message.text == "Снять с поста модератора")
         def remove_moderator_button(message):
@@ -300,17 +338,6 @@ class DialogBot:
             except Exception as e:
                 logger.exception("An error occurred in remove_mod:")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке команды. Пожалуйста, повторите попытку позже.")
-
-        @self.bot.callback_query_handler(func=lambda call: True)
-        def handle_button_click(call):
-            user_id = call.from_user.id
-            try:
-                message_id = call.message.message_id
-                self.user.handle_button_click(call, message_id)
-            except Exception as e:
-                logger.exception("An error occurred in handle_button_click:")
-                self.bot.send_message(call.from_user.id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
-
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
         def start_distribution(message):
@@ -803,13 +830,13 @@ class DialogBot:
                 logger.exception("An error occurred in work_with_users:")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
-        # Обработка кнопки "Отредактировать пользователя"
-        @self.bot.message_handler(func=lambda message: message.text == 'Отредактировать пользователя')
+        # Обработка кнопки "Редактирование пользователя"
+        @self.bot.message_handler(func=lambda message: message.text == 'Редактирование пользователя')
         def request_edit_user(message):
             user_id = message.from_user.id
             try:
                 hide_markup = types.ReplyKeyboardRemove()
-                logger.info(f"User ID: {user_id}, Отредактировать пользователя") 
+                logger.info(f"User ID: {user_id}, Редактирование пользователя") 
                 self.database.set_pending_command(user_id, '/eu')
                 self.bot.send_message(user_id, 'Введите фамилию или номер телефона пользователя', reply_markup = hide_markup)
             except Exception as e:
@@ -824,6 +851,44 @@ class DialogBot:
             except Exception as e:
                 logger.exception("An error occurred in edit_user:")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+        
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/eufio')
+        def edit_user_fio(message):
+            user_id = message.from_user.id
+            text = message.text.lower()
+            words = text.split()
+            fio = ' '.join(words[:2])
+            fio_without_spaces = fio.replace(" ", "")
+
+            if fio_without_spaces.isalpha():
+                try:
+                    self.database.update_user_fio(fio, user_id)
+                except Exception as e:
+                    logger.exception("An error occurred in edit_user:")
+                    self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+            else:
+                self.bot.send_message(user_id, "Фио должно содержать только буквы")
+                
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/euregion')
+        def edit_user_region(message):
+            user_id = message.from_user.id
+            region = message.text.lower()
+            try:
+                self.database.update_user_region(region, user_id)
+            except Exception as e:
+                logger.exception("An error occurred in edit_user:")
+                self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/eugroup')
+        def edit_user_group(message):
+            user_id = message.from_user.id
+            group = message.text.lower()
+            try:
+                self.database.update_user_group(group, user_id)
+            except Exception as e:
+                logger.exception("An error occurred in edit_user:")
+                self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
 
         # Запуск бота
         self.bot.polling()

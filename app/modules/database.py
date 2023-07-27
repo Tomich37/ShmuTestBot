@@ -46,7 +46,23 @@ class Database:
         else:
             result = False
             return result
+        
+    # Выдача информации о пользователе по ФИО 
+    def user_info_fio(self, fio):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT phone_number, user_id, fio, role, region, user_group FROM users WHERE fio LIKE ?", (fio + '%',))
+            result = cursor.fetchone()
+        return result
     
+    # Выдача информации о пользователе по ФИО 
+    def user_info_phone_number(self, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT phone_number, user_id, fio, role, region, user_group FROM users WHERE phone_number LIKE ?", (phone_number,))
+            result = cursor.fetchone()
+        return result
+
     # Проверка роли пользователя
     def get_user_role(self, user_id):
         with self.get_database_connection_users() as conn:
@@ -361,5 +377,56 @@ class Database:
                 return result[0]  # Return the first value from the result (message_id)
             else:
                 return None  # If no record found, return None
-            
+    
+    # Временное сохранение номера телефона
+    def temp_phone_number(self, user_id, phone_number):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO temp_storage (user_id, phone_number) VALUES (?, ?)", (user_id, phone_number))
+            conn.commit()
 
+    def clear_temp_phone_number(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM temp_storage WHERE user_id = ?", (user_id,))
+            conn.commit()
+    
+    # Взятие телефона
+    def get_temp_phone_number(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT phone_number FROM temp_storage WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    # Редактирование фио
+    def update_user_fio(self, fio, user_id):
+        phone_number = self.get_temp_phone_number(user_id)
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET fio = ?, authorized = 1 WHERE phone_number = ?", (fio, phone_number))
+            conn.commit()
+        self.clear_pending_command(user_id)
+        self.bot.send_message(user_id, "ФИО пользователя изменено")
+    
+    # Редактирование региона
+    def update_user_region(self, region, user_id):
+        phone_number = self.get_temp_phone_number(user_id)
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET region = ?, authorized = 1 WHERE phone_number = ?", (region, phone_number))
+            conn.commit()
+        self.clear_pending_command(user_id)
+        self.bot.send_message(user_id, "Регион пользователя изменен")
+
+    # Редактирование группы
+    def update_user_group(self, user_group, user_id):
+        phone_number = self.get_temp_phone_number(user_id)
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET user_group = ?, authorized = 1 WHERE phone_number = ?", (user_group, phone_number))
+            conn.commit()
+        self.clear_pending_command(user_id)
+        self.bot.send_message(user_id, "Группа пользователя изменена")

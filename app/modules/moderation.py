@@ -20,16 +20,25 @@ class Moderation:
         add_moderator_button = types.KeyboardButton(text="Добавить модератора")
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
-        add_users_button= types.KeyboardButton(text="Добавить пользователей")
-        get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
-        add_data_button= types.KeyboardButton(text="Загрузить материалы")
+        users_button= types.KeyboardButton(text="Работа с пользователями")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
-        markup.add(add_data_button)
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
+        markup.add(users_button)
+        markup.add(menu_button)
+        return markup
+    
+    @staticmethod
+    def admin_user_markup():
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        add_users_button= types.KeyboardButton(text="Добавить пользователей")
+        get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
+        users_edit= types.KeyboardButton(text="Редактирование пользователя")
+        menu_button= types.KeyboardButton(text="Меню")
         markup.add(add_users_button)
         markup.add(get_users_button)
+        markup.add(users_edit)
         markup.add(menu_button)
         return markup
 
@@ -38,23 +47,15 @@ class Moderation:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         add_data_button= types.KeyboardButton(text="Загрузить материалы")
-        add_users_button= types.KeyboardButton(text="Добавить пользователей")
-        get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
+        users_button= types.KeyboardButton(text="Работа с пользователями")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(distribution_button)
         markup.add(add_data_button)
-        markup.add(add_users_button)
-        markup.add(get_users_button)
+        markup.add(users_button)
         markup.add(menu_button)
         return markup
-    
-    @staticmethod
-    def user_markup():
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-        distribution_button= types.KeyboardButton(text="События")
-        markup.add(distribution_button)
-        return markup
 
+    @staticmethod
     def menu_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         distribution_button= types.KeyboardButton(text="Меню")
@@ -320,3 +321,34 @@ class Moderation:
         else:
             markup = self.user_markup()
             self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)
+
+    def edit_user(self, message):
+        user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
+        fio = message.text.lower()
+        if role != "user":
+            user_info = self.database.user_info_fio(fio)
+            if user_info is not None:
+                # Формируем сообщение с информацией о пользователе
+                user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
+
+                phone_number = user_info[0]
+                self.database.temp_phone_number(user_id, phone_number)
+                
+                # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
+                keyboard = types.InlineKeyboardMarkup()
+                edit_user_fio_button = types.InlineKeyboardButton(text="ФИО", callback_data=f"edit_user_fio_{phone_number}")
+                edit_user_region_button = types.InlineKeyboardButton(text="Регион", callback_data=f"edit_user_region_{phone_number}")
+                edit_user_group_button = types.InlineKeyboardButton(text="Группа", callback_data=f"edit_user_group_{phone_number}")
+                cancel_edit_user = types.InlineKeyboardButton(text="Готово", callback_data="edit_user_cancel")
+                keyboard.add(edit_user_fio_button, edit_user_region_button, edit_user_group_button, cancel_edit_user)
+
+                # Отправляем сообщение с клавиатурой
+                self.bot.send_message(user_id, user_message, reply_markup=keyboard)
+            else:
+                self.database.clear_pending_command(user_id)
+                markup = self.menu_markup()
+                self.bot.send_message(user_id, "Пользователь не найден", reply_markup=markup)
+        else:
+            markup = self.user_markup()            
+            self.bot.send_message(user_id, "У вас недостаточно прав", reply_markup=markup)    

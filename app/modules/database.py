@@ -235,11 +235,11 @@ class Database:
             conn.commit()
 
     # Добавление новых пользователей
-    def insert_user(self, phone_number, fio, region, user_group, job):
+    def insert_or_update_user(self, phone_number, fio, region, user_group, job):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT OR IGNORE INTO users (phone_number, fio, region, user_group, job, role, authorized) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (phone_number, fio, region, user_group, job, "user", 0))
+            cursor.execute("INSERT OR REPLACE INTO users (phone_number, fio, region, user_group, job, role) VALUES (?, ?, ?, ?, ?, ?)",
+                        (phone_number, fio, region, user_group, job, "user"))
             conn.commit()
     
     # Поиск авторизированных пользователей по группам    

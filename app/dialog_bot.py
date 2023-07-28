@@ -196,7 +196,7 @@ class DialogBot:
                 if self.database.user_exists_id(user_id):
                     if user_role != 'user':
                         self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
-                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - имя\nlast_name - фамилия\nregion - регион\nuser_group - группа пользователей (Базовая, продвинутая, блогеры)")
+                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\nfio - ФИО пользователя\n\nОпциональные столбцы:\nregion - регион\nuser_group - группа пользователя\njob - должность пользователя")
                     else:
                         self.bot.send_message(user_id, "Недостаточно прав")
                 else:
@@ -273,15 +273,18 @@ class DialogBot:
 
                 elif action == 'cancel':
                     self.database.get_temp_phone_number(user_id)
-                    phone_number = self.database.get_temp_phone_number(user_id)
-                    user_info = self.database.user_info_phone_number(phone_number)
+                    phone_number = self.database.get_temp_phone_number(user_id)                    
                     markup = self.menu_markup()
-                    self.database.clear_pending_command(user_id)
-                    self.database.clear_temp_phone_number(user_id)
-                    self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
-                    user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
+                    if phone_number is not None:
+                        user_info = self.database.user_info_phone_number(phone_number)
+                        self.database.clear_pending_command(user_id)
+                        self.database.clear_temp_phone_number(user_id)
+                        self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+                        user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
 
-                    self.bot.send_message(user_id, user_message, reply_markup=markup)
+                        self.bot.send_message(user_id, user_message, reply_markup=markup)
+                    else:
+                        self.bot.send_message(user_id, 'Пользователь еще не зарегестрировался, обновление невозможно', reply_markup=markup)
 
                 else:
                     # Неизвестное действие, обработка ошибки или другие действия по вашему усмотрению

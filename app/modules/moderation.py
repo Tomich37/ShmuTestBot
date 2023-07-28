@@ -239,10 +239,10 @@ class Moderation:
                         phone_number = '7' + phone_number[1:]           
 
                     if phone_number and (phone_number.startswith('7') and len(phone_number) == 11):
-                        self.database.insert_user(phone_number, fio, region, user_group, job)
+                        self.database.insert_or_update_user(phone_number, fio, region, user_group, job)
                     else: 
                         phone_number = None
-                        self.database.insert_user(phone_number, fio, region, user_group, job)
+                        self.database.insert_or_update_user(phone_number, fio, region, user_group, job)
 
 
             self.bot.send_message(user_id, "Пользователи добавлены")

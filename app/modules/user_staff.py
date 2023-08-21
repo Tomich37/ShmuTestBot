@@ -20,6 +20,8 @@ class User:
                 self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/a-pugligE5KB-g")
             elif user_group in ['5', '6']:
                 self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/XXmAn0JaFZKRVw")
+            elif user_group in ['ТС']:
+                self.bot.send_message(message.chat.id, "Материалы доступны по ссылке:\nhttps://disk.yandex.ru/d/5pdekJ2JN_l4fw\nhttps://disk.yandex.ru/d/a-pugligE5KB-g")
             else:
                 self.bot.send_message(message.chat.id, "К сожалению Вас нет в списке. Ожидайте авторизации модераторами мероприятия.")
         else:

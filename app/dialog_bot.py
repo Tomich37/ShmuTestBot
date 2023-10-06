@@ -144,8 +144,7 @@ class DialogBot:
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     
                 if user_role == "admin" or user_role == "moderator":
-                    moderation_button = types.KeyboardButton(text="Модерация")
-                    markup.add(moderation_button)
+                    markup = self.admin_markup()
                     self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
                     self.bot.clear_reply_handlers(message)
                 elif user_role == "user":

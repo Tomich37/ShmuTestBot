@@ -32,6 +32,7 @@ class Moderation:
     @staticmethod
     def admin_user_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        quiz_button = types.KeyboardButton(text="Викторина")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
         get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
         users_edit= types.KeyboardButton(text="Редактирование пользователя")

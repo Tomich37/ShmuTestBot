@@ -1,6 +1,4 @@
 from .database import Database
-import configparser
-import telebot
 import openpyxl
 from openpyxl import Workbook
 import os
@@ -17,11 +15,13 @@ class Moderation:
     @staticmethod
     def admin_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        quiz_button = types.KeyboardButton(text="Викторина")
         add_moderator_button = types.KeyboardButton(text="Добавить модератора")
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         users_button= types.KeyboardButton(text="Работа с пользователями")
         menu_button= types.KeyboardButton(text="Меню")
+        markup.add(quiz_button)
         markup.add(distribution_button)
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
@@ -32,7 +32,6 @@ class Moderation:
     @staticmethod
     def admin_user_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-        quiz_button = types.KeyboardButton(text="Викторина")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
         get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
         users_edit= types.KeyboardButton(text="Редактирование пользователя")

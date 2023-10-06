@@ -899,9 +899,39 @@ class DialogBot:
         def quiz_press_button(message):
             self.quiz.quiz_press_button(message)
 
+        # Работа с викториной
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz')
+        def set_quiz(message):
+            if message.text == "Создать викторину":
+                self.quiz.quiz_set_question(message)
+            elif message.text == "Выполнить викторину":
+                pass
+            elif message.text == "Выгрузить результаты":
+                pass
 
+        # Создание вопроса в викторине
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')
+        def quiz_add_question(message):
+            self.quiz.quiz_add_question(message)
 
+        # Создание ответа в викторине
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_answer')
+        def quiz_add_answer(message):
+            user_id = message.from_user.id
+            if message.text == "Завершить":
+                self.database.set_pending_command(user_id, '/set_quiz')
+                markup = self.quiz.quiz_markup()
+                self.bot.send_message(user_id, "Викторина создана и сохранена.", reply_markup=markup)
+            elif message.text == "Отмена":
+                self.database.set_pending_command(user_id, '/set_quiz')
+                markup = self.quiz.quiz_markup()
 
+                id_question = self.database.get_quiz_question_id(user_id)
+                self.database.quiz_delete(id_question)
+
+                self.bot.send_message(user_id, "Вы отменили создание викторины, выберите действие.", reply_markup=markup)
+            else:
+                self.quiz.quiz_add_answer(message)
 
 
 

@@ -430,3 +430,80 @@ class Database:
             conn.commit()
         self.clear_pending_command(user_id)
         self.bot.send_message(user_id, "Группа пользователя изменена")
+
+     #Добавление нового вопроса для викторины    
+    def quiz_insert_question(self, question):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO quiz_questions (question) VALUES (?)", (question,))
+            conn.commit()
+    
+    # Взятие вопроса викторины и ее id
+    def get_last_quiz_question(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, question FROM quiz_questions WHERE id = (SELECT MAX(id) FROM quiz_questions)")
+            result = cursor.fetchone()
+        return result
+    
+    # Взятие вопроса викторины и ее id
+    def get_quiz_question(self, question_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT question FROM quiz_questions WHERE id = {question_id}")
+            result = cursor.fetchone()
+        return result
+    
+    # Сохранение id вопроса для викторины      
+    def set_quiz_question_id(self, user_id, question_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO user_question_id (user_id, question_id) VALUES (?, ?)", (user_id, question_id))
+            conn.commit()
+
+    # Взятие id вопроса для викторины    
+    def get_quiz_question_id(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT question_id FROM user_question_id WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+    
+    #Добавление ответа викторины от модератора
+    def quiz_insert_answer(self, id_question, answer):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO quiz_mod_answers (id_question, answer) VALUES (?, ?)", (id_question, answer,))
+            conn.commit()
+
+    def get_all_quiz_answers(self, id_question):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM quiz_mod_answers WHERE id_question = {id_question}")
+            result = cursor.fetchall()
+        return result
+    
+    # Сохранение id вопроса сообщения для викторины      
+    def set_quiz_question_message_id(self, user_id, message_id, chat_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO question_message_id (user_id, message_id, chat_id) VALUES (?, ?, ?)", (user_id, message_id, chat_id))
+            conn.commit()
+
+    # Взятие id сообщения и чата где выведен вопрос    
+    def get_quiz_question_message_id(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT message_id FROM question_message_id WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        return result
+    
+    # Удаление викторины
+    def quiz_delete(self, id_question):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM quiz_mod_answers WHERE id_question = ?", (id_question,))
+            cursor.execute("DELETE FROM quiz_questions WHERE id = ?", (id_question,))
+            conn.commit()

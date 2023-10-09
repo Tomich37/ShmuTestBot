@@ -75,7 +75,7 @@ class Quiz:
             answer = message.text
             id_question = self.database.get_quiz_question_id(user_id)
             self.database.quiz_insert_answer(id_question, answer)
-            answers = self.database.get_all_quiz_answers(id_question)
+            answers = self.database.get_quiz_answers(id_question)
             question_text = self.database.get_quiz_question(id_question)
 
             markup = types.InlineKeyboardMarkup()
@@ -88,3 +88,76 @@ class Quiz:
         except Exception as e:
             self.logger.exception(f"An error occurred in quiz/quiz_add_answer: {e}")
             self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+    def quiz_choice(self, message):
+        user_id = message.from_user.id
+        try:
+            # self.database.set_pending_command(user_id, '/quiz_choice')
+            questions = self.database.get_quiz_all_questions()
+
+            # Разделяем вопросы на группы по 10 вопросов
+            chunks = [questions[i:i+10] for i in range(0, len(questions), 10)]
+
+            # Отправляем первую группу вопросов
+            self.quiz_send_question_group(user_id, chunks, 0)
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_choice: {e}")
+            self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+    def quiz_send_question_group(self, user_id, chunks, group_index):
+        markup = types.InlineKeyboardMarkup()
+
+        # Добавляем кнопки навигации
+        next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_next_group_{group_index}')
+        cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_cancle')
+
+        # Формируем текст сообщения с вопросами текущей группы
+        message_text = "Введите ID интересующей Вас викторины (оно находится с правой стороны от |):\n\n"
+        i = 1
+        for question in chunks[group_index]:
+            message_text += f'{i}. {question[1][:30]} | {question[0]}\n'
+            i += 1
+
+        # Проверяем, является ли текущая страница последней
+        if group_index < len(chunks) - 1:
+            next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_next_group_{group_index}')
+            markup.add(next_button)
+        markup.add(cancle_button)
+
+        # Отправляем сообщение
+        self.bot.send_message(user_id, message_text, reply_markup=markup)
+
+    def quiz_upload_question_group(self, group_index, call):
+        try:
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            questions = self.database.get_quiz_all_questions()
+
+            # Разделяем вопросы на группы по 10 вопросов
+            chunks = [questions[i:i+10] for i in range(0, len(questions), 10)]
+
+            # Кнопки
+            next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_next_group_{group_index}')
+            prev_button = types.InlineKeyboardButton('<< Назад', callback_data=f'quiz_prev_group_{group_index}')
+            cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_cancle')
+
+            # Добавляем кнопки навигации
+            if group_index == len(chunks) - 1:
+                markup.add(prev_button)
+            elif group_index == 0:
+                markup.add(next_button)
+            else:
+                markup.add(prev_button, next_button)        
+            markup.add(cancle_button)
+
+            # Формируем текст сообщения с вопросами текущей группы
+            message_text = "Введите ID интересующей Вас викторины (оно находится с правой стороны от |):\n\n"
+            i = 1
+            for question in chunks[group_index]:
+                message_text += f'{i}. {question[1][:30]} | {question[0]}\n'
+                i += 1
+
+            # Обновляем сообщение
+            self.bot.edit_message_text(message_text, reply_markup=markup, chat_id=call.message.chat.id, message_id=call.message.message_id)
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_upload_question_group: {e}")
+            self.bot.send_message(call.from_user.id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")

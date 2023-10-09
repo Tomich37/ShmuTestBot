@@ -385,7 +385,7 @@ class Database:
             cursor.execute("INSERT OR REPLACE INTO temp_storage (user_id, phone_number) VALUES (?, ?)", (user_id, phone_number))
             conn.commit()
 
-    def clear_temp_phone_number(self, user_id):
+    def clear_temp(self, user_id):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM temp_storage WHERE user_id = ?", (user_id,))
@@ -478,7 +478,8 @@ class Database:
             cursor.execute("INSERT INTO quiz_mod_answers (id_question, answer) VALUES (?, ?)", (id_question, answer,))
             conn.commit()
 
-    def get_all_quiz_answers(self, id_question):
+    # Взятие всех ответов викторины по Id вопроса
+    def get_quiz_answers(self, id_question):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
             cursor.execute(f"SELECT * FROM quiz_mod_answers WHERE id_question = {id_question}")
@@ -507,3 +508,28 @@ class Database:
             cursor.execute("DELETE FROM quiz_mod_answers WHERE id_question = ?", (id_question,))
             cursor.execute("DELETE FROM quiz_questions WHERE id = ?", (id_question,))
             conn.commit()
+
+    # Взятие всех ответов викторины по Id вопроса
+    def get_quiz_all_questions(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM quiz_questions")
+            result = cursor.fetchall()
+        return result
+    
+    # Временное хранение id сообщения для викторины
+    def quiz_temp_add_id_message(self, user_id, message_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO temp_storage (user_id, message_id) VALUES (?, ?)", (user_id, message_id))
+            conn.commit()
+ 
+    # Взятие id сообщения для викторины
+    def quiz_temp_get_id_message(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT messge_id FROM temp_storage WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        return None

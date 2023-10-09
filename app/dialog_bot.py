@@ -85,15 +85,6 @@ class DialogBot:
         return markup
 
     def run(self):
-        # Показывает меню с кнопками
-        def __show_menu(chat_id):
-            markup = types.InlineKeyboardMarkup()
-            next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
-            prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
-            markup.row(prev_button)
-            markup.row(next_button)
-            self.bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
-
         # Обработчик команды /start
         @self.bot.message_handler(commands=['start'])
         def __handle_start(message):
@@ -280,7 +271,7 @@ class DialogBot:
                     if phone_number is not None:
                         user_info = self.database.user_info_phone_number(phone_number)
                         self.database.clear_pending_command(user_id)
-                        self.database.clear_temp_phone_number(user_id)
+                        self.database.clear_temp(user_id)
                         self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
                         user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
 
@@ -296,24 +287,24 @@ class DialogBot:
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
         # Кнопки подтверждения/отмены
-        @self.bot.callback_query_handler(func=lambda call: True)
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('mod_'))
         def handle_button_click(call):
             user_id = call.from_user.id
             try:
                 markup = None
-                if call.data.startswith('confirm_add_mod_'):
+                if call.data.startswith('mod_confirm_add_'):
                     phone_number = call.data.split('_')[3]
                     self.database.add_moderator(phone_number)
                     markup = self.moderation.admin_markup()
                     self.bot.send_message(call.message.chat.id, "Модератор добавлен", reply_markup=markup)
-                elif call.data == 'cancel_add_mod':
+                elif call.data == 'mod_cancel_add':
                     self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
-                elif call.data.startswith('confirm_remove_mod_'):
+                elif call.data.startswith('mod_confirm_remove_'):
                     phone_number = call.data.split('_')[3]
                     self.database.remove_moderator(phone_number)
                     markup = self.moderation.admin_markup()
                     self.bot.send_message(call.message.chat.id, "Модератор снят", reply_markup=markup)
-                elif call.data == 'cancel_remove_mod':
+                elif call.data == 'mod_cancel_remove':
                     self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
             except Exception as e:
                 logger.exception(f"An error occurred in handle_button_click: {e}")
@@ -905,7 +896,7 @@ class DialogBot:
             if message.text == "Создать викторину":
                 self.quiz.quiz_set_question(message)
             elif message.text == "Выполнить викторину":
-                pass
+                self.quiz.quiz_choice(message)
             elif message.text == "Выгрузить результаты":
                 pass
 
@@ -933,6 +924,20 @@ class DialogBot:
             else:
                 self.quiz.quiz_add_answer(message)
 
+        # Взаимодействие кнопок call викторины
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('quiz_'))
+        def quiz_call_click(call):
+            user_id = call.from_user.id
+            group_index = int(call.data.split('_')[-1])
+            try:
+                if call.data.startswith('quiz_prev_group_'):                    
+                    group_index -= 1
+                elif call.data.startswith('quiz_next_group_'):
+                    group_index += 1
+                self.quiz.quiz_upload_question_group(group_index, call)
+            except Exception as e:
+                logger.exception(f"An error occurred in handle_button_click: {e}")
+                self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
 
 

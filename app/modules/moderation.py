@@ -104,8 +104,8 @@ class Moderation:
 
                     # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
                     keyboard = types.InlineKeyboardMarkup()
-                    confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_add_mod_{phone_number}")
-                    cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_add_mod")
+                    confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"mod_confirm_add_{phone_number}")
+                    cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="mod_cancel_add")
                     keyboard.add(confirm_add_mod_button, cancel_add_mod_button)
 
                     # Отправляем сообщение с клавиатурой
@@ -148,8 +148,8 @@ class Moderation:
                     
                     # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
                     keyboard = types.InlineKeyboardMarkup()
-                    confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_remove_mod_{phone_number}")
-                    cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_remove_mod")
+                    confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"mod_confirm_remove_{phone_number}")
+                    cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="mod_cancel_remove")
                     keyboard.add(confirm_remove_mod_button, cancel_remove_mod_button)
 
                     # Отправляем сообщение с клавиатурой

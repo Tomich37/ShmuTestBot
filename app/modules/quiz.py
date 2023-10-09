@@ -92,7 +92,7 @@ class Quiz:
     def quiz_choice(self, message):
         user_id = message.from_user.id
         try:
-            # self.database.set_pending_command(user_id, '/quiz_choice')
+            self.database.set_pending_command(user_id, '/quiz_choice')
             questions = self.database.get_quiz_all_questions()
 
             # Разделяем вопросы на группы по 10 вопросов
@@ -109,7 +109,7 @@ class Quiz:
 
         # Добавляем кнопки навигации
         next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_next_group_{group_index}')
-        cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_cancle')
+        cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_cancle_group')
 
         # Формируем текст сообщения с вопросами текущей группы
         message_text = "Введите ID интересующей Вас викторины (оно находится с правой стороны от |):\n\n"
@@ -136,9 +136,9 @@ class Quiz:
             chunks = [questions[i:i+10] for i in range(0, len(questions), 10)]
 
             # Кнопки
-            next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_next_group_{group_index}')
-            prev_button = types.InlineKeyboardButton('<< Назад', callback_data=f'quiz_prev_group_{group_index}')
-            cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_cancle')
+            next_button = types.InlineKeyboardButton('Вперед >>', callback_data=f'quiz_group_next_{group_index}')
+            prev_button = types.InlineKeyboardButton('<< Назад', callback_data=f'quiz_group_prev_{group_index}')
+            cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_group_cancle')
 
             # Добавляем кнопки навигации
             if group_index == len(chunks) - 1:
@@ -161,3 +161,33 @@ class Quiz:
         except Exception as e:
             self.logger.exception(f"An error occurred in quiz/quiz_upload_question_group: {e}")
             self.bot.send_message(call.from_user.id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+    def quiz_get_quiz_by_id(self, message):
+        user_id = message.from_user.id
+        try:
+            try:
+                id_question = int(message.text)
+                question_text = self.database.get_quiz_question(id_question)
+                if question_text is not None:
+                    answers = self.database.get_quiz_answers(id_question)
+
+                    cancle_button = types.InlineKeyboardButton('Отмена', callback_data='quiz_quiz_cancle')
+                    send_button = types.InlineKeyboardButton('Разослать', callback_data=f'quiz_quiz_send_{id_question}')
+                    delete_button = types.InlineKeyboardButton('Удалить', callback_data=f'quiz_quiz_delete_{id_question}')
+
+                    markup = types.InlineKeyboardMarkup()
+                    for ans_id, q_id, ans_text in answers:
+                        button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_question_{q_id}_answer_{ans_id}')
+                        markup.add(button)
+                    
+                    markup.add(send_button, delete_button)
+                    markup.add(cancle_button)
+                        
+                    self.bot.send_message(chat_id=user_id, text=question_text, reply_markup=markup)
+                else:
+                    self.bot.send_message(user_id, "Виктрины с таким ID не существует")
+            except ValueError:
+                self.bot.send_message(user_id, "Ожидается число")            
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_get_quiz_by_id: {e}")
+            self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")

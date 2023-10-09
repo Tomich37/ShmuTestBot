@@ -429,7 +429,6 @@ class DialogBot:
                 self.database.clear_pending_command(user_id)
                 logger.exception(f"An error occurred in finish_text_distribution: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке рассылки. Пожалуйста, повторите попытку позже.")
-                
 
         #Если загружено фото
         @self.bot.message_handler(content_types=['photo'])
@@ -898,7 +897,7 @@ class DialogBot:
             elif message.text == "Выполнить викторину":
                 self.quiz.quiz_choice(message)
             elif message.text == "Выгрузить результаты":
-                pass
+                pass #СДЕЛАТЬ ВЫГРУЗКУ РЕЗУЛЬТАТОВ
 
         # Создание вопроса в викторине
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')
@@ -928,19 +927,39 @@ class DialogBot:
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('quiz_'))
         def quiz_call_click(call):
             user_id = call.from_user.id
-            group_index = int(call.data.split('_')[-1])
+            markup = self.quiz.quiz_markup()
             try:
-                if call.data.startswith('quiz_prev_group_'):                    
-                    group_index -= 1
-                elif call.data.startswith('quiz_next_group_'):
-                    group_index += 1
-                self.quiz.quiz_upload_question_group(group_index, call)
+                if call.data.startswith('quiz_group_'):
+                    if call.data.startswith('quiz_group_prev_'): 
+                        group_index = int(call.data.split('_')[-1])                   
+                        group_index -= 1
+                        self.quiz.quiz_upload_question_group(group_index, call)
+                    elif call.data.startswith('quiz_group_next_'):
+                        group_index = int(call.data.split('_')[-1]) 
+                        group_index += 1
+                        self.quiz.quiz_upload_question_group(group_index, call)
+                    elif call.data == 'quiz_group_cancle':
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                elif call.data.startswith('quiz_quiz_'):
+                    self.database.set_pending_command(user_id, '/set_quiz')
+                    if call.data == 'quiz_quiz_cancle': 
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                        self.bot.send_message(user_id, "Выберите действие.", reply_markup=markup)
+                    elif call.data.startswith('quiz_quiz_send'):
+                        id_question = int(call.data.split('_')[-1]) #СДЕЛАТЬ РАССЫЛКУ
+                    elif call.data.startswith('quiz_quiz_delete'):
+                        id_question = int(call.data.split('_')[-1])
+                        self.database.quiz_delete(id_question)
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                        self.bot.send_message(user_id, "Викторина удалена", reply_markup=markup)
             except Exception as e:
                 logger.exception(f"An error occurred in handle_button_click: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
-
-
+        # Получение информации о виторине по id
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_choice')
+        def quiz_get_quiz_by_id(message):
+            self.quiz.quiz_get_quiz_by_id(message)
 
 
 

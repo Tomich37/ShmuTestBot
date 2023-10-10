@@ -928,6 +928,7 @@ class DialogBot:
         def quiz_call_click(call):
             user_id = call.from_user.id
             markup = self.quiz.quiz_markup()
+            role = self.database.get_user_role(user_id)
             try:
                 if call.data.startswith('quiz_group_'):
                     if call.data.startswith('quiz_group_prev_'): 
@@ -946,14 +947,46 @@ class DialogBot:
                         self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
                         self.bot.send_message(user_id, "Выберите действие.", reply_markup=markup)
                     elif call.data.startswith('quiz_quiz_send'):
-                        id_question = int(call.data.split('_')[-1]) #СДЕЛАТЬ РАССЫЛКУ
+                        try:
+                            id_question = int(call.data.split('_')[-1])
+                            all_users_id = self.database.get_users()
+                            question_text = self.database.get_quiz_question(id_question)
+                            answers = self.database.get_quiz_answers(id_question)
+
+                            markup = types.InlineKeyboardMarkup()
+                            for ans_id, q_id, ans_text in answers:
+                                button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_question_{q_id}_answer_{ans_id}')
+                                markup.add(button)
+
+                            all_users_id = [user_id[0] for user_id in all_users_id]
+                            for user_id in all_users_id:
+                                try:
+                                    self.bot.send_message(user_id, question_text, reply_markup=markup)
+                                    logger.info(f"User ID: {user_id}, успешная рассылка викторины") 
+                                    time.sleep(3)
+                                except telebot.apihelper.ApiTelegramException as e:
+                                    if e.result.status_code == 403:
+                                        # Пользователь заблокировал бота
+                                        self.database.update_user_authorized(user_id, 0)
+                                        logger.info(f"Пользователь с ID {user_id} заблокировал бота")
+                                        continue  # Продолжаем рассылку следующему пользователю
+                                    else:
+                                        logger.exception(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
+                                        continue  # Продолжаем рассылку следующему пользователю
+                            if role == 'admin':
+                                markup = self.moderation.admin_markup()                
+                                self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                                logger.info(f"User ID: {user_id}, тектовая рассылка завершена")
+                        except Exception as e:
+                            logger.exception(f"An error occurred in callback_query_handler/quiz_quiz_send: {e}")
+                            self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
                     elif call.data.startswith('quiz_quiz_delete'):
                         id_question = int(call.data.split('_')[-1])
                         self.database.quiz_delete(id_question)
                         self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
                         self.bot.send_message(user_id, "Викторина удалена", reply_markup=markup)
             except Exception as e:
-                logger.exception(f"An error occurred in handle_button_click: {e}")
+                logger.exception(f"An error occurred in callback_query_handler: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
         # Получение информации о виторине по id

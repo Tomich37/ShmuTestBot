@@ -555,3 +555,10 @@ class Database:
             cursor.execute("SELECT answer FROM quiz_mod_answers WHERE id = ?", (answer_id,))
             result = cursor.fetchone()
         return result
+    
+    def quiz_get_all_results(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM quiz_users_answers")
+            result = cursor.fetchall()
+        return result

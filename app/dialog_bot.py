@@ -897,7 +897,7 @@ class DialogBot:
             elif message.text == "Выполнить викторину":
                 self.quiz.quiz_choice(message)
             elif message.text == "Выгрузить результаты":
-                pass #СДЕЛАТЬ ВЫГРУЗКУ РЕЗУЛЬТАТОВ
+                self.quiz.quiz_get_all_results(message)
 
         # Создание вопроса в викторине
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')
@@ -1005,9 +1005,6 @@ class DialogBot:
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_choice')
         def quiz_get_quiz_by_id(message):
             self.quiz.quiz_get_quiz_by_id(message)
-
-
-
 
 
         # Запуск бота

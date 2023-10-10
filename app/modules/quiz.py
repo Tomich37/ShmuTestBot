@@ -1,5 +1,7 @@
 from .database import Database
 from telebot import types
+import pandas as pd
+import os
 
 class Quiz:
     def __init__(self, bot, logger):   
@@ -193,16 +195,45 @@ class Quiz:
             self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
     def quiz_save_answer(self, call):
-        user_id = call.from_user.id
-        user_info = self.database.get_user_info(user_id)
-        question_id, answer_id = self.quiz_extract_ids_from_callback(call.data)
-        question_text = self.database.get_quiz_question(question_id)
-        answer_text = self.database.quiz_get_answer_text_by_id(answer_id)
-        
-        self.database.quiz_save_answers(user_id, user_info[0], user_info[1], question_text[0], answer_text[0])
+        try:
+            user_id = call.from_user.id
+            user_info = self.database.get_user_info(user_id)
+            question_id, answer_id = self.quiz_extract_ids_from_callback(call.data)
+            question_text = self.database.get_quiz_question(question_id)
+            answer_text = self.database.quiz_get_answer_text_by_id(answer_id)
+            
+            self.database.quiz_save_answers(user_id, user_info[0], user_info[1], question_text[0], answer_text[0])
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_save_answer: {e}")
+            self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
     def quiz_extract_ids_from_callback(self, callback_data):
         parts = callback_data.split('_')
         question_id = int(parts[2])
         answer_id = int(parts[4])
         return question_id, answer_id
+    
+    def quiz_get_all_results(self, message):
+        try:
+            user_id = message.from_user.id
+            results = self.database.quiz_get_all_results()
+            
+            if results:
+                # Создаем DataFrame из результата запроса
+                df = pd.DataFrame(results, columns=["ID ответа", "ID пользователя", "ФИО", "Номер телефона", "Вопрос", "Ответ"])
+
+                # Сохраняем DataFrame в Excel-файл
+                excel_path = "quiz_results.xlsx"
+                df.to_excel(excel_path, index=False)
+
+                # Отправляем Excel-файл пользователю
+                with open(excel_path, "rb") as file:
+                    self.bot.send_document(user_id, file)
+
+                # Удаляем временный файл
+                os.remove(excel_path)
+            else:
+                self.bot.send_message(user_id, "Нет результатов для экспорта.")
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_get_all_results: {e}")
+            self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")

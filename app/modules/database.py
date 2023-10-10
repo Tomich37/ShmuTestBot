@@ -446,7 +446,7 @@ class Database:
             result = cursor.fetchone()
         return result
     
-    # Взятие вопроса викторины и ее id
+    # Взятие вопроса викторины по ее id
     def get_quiz_question(self, question_id):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -509,7 +509,7 @@ class Database:
             cursor.execute("DELETE FROM quiz_questions WHERE id = ?", (id_question,))
             conn.commit()
 
-    # Взятие всех ответов викторины по Id вопроса
+    # Взятие всех викторин
     def get_quiz_all_questions(self):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
@@ -533,3 +533,25 @@ class Database:
         if result:
             return result[0]
         return None
+    
+    def get_user_info(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT fio, phone_number FROM users WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+        return result
+
+    # Сохранение ответов пользователей
+    def quiz_save_answers(self, user_id, user_fio, user_phone, question_text, answer_text):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO quiz_users_answers (user_id, fio, phone_number, question, answer) VALUES (?, ?, ?, ?, ?)",
+            (user_id, user_fio, user_phone, question_text, answer_text))
+            conn.commit()
+
+    def quiz_get_answer_text_by_id(self, answer_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT answer FROM quiz_mod_answers WHERE id = ?", (answer_id,))
+            result = cursor.fetchone()
+        return result

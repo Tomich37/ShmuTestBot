@@ -930,6 +930,7 @@ class DialogBot:
             markup = self.quiz.quiz_markup()
             role = self.database.get_user_role(user_id)
             try:
+                # Кнопки вперед/назад/отмена для просмотра викторин
                 if call.data.startswith('quiz_group_'):
                     if call.data.startswith('quiz_group_prev_'): 
                         group_index = int(call.data.split('_')[-1])                   
@@ -941,6 +942,7 @@ class DialogBot:
                         self.quiz.quiz_upload_question_group(group_index, call)
                     elif call.data == 'quiz_group_cancle':
                         self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                # Кнопки работы с отдельной викториной
                 elif call.data.startswith('quiz_quiz_'):
                     self.database.set_pending_command(user_id, '/set_quiz')
                     if call.data == 'quiz_quiz_cancle': 
@@ -974,19 +976,29 @@ class DialogBot:
                                         logger.exception(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
                                         continue  # Продолжаем рассылку следующему пользователю
                             if role == 'admin':
-                                markup = self.moderation.admin_markup()                
+                                markup = self.moderation.admin_markup()
                                 self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
-                                logger.info(f"User ID: {user_id}, тектовая рассылка завершена")
+                                logger.info(f"User ID: {user_id}, рассылка викторины завершена")
                         except Exception as e:
-                            logger.exception(f"An error occurred in callback_query_handler/quiz_quiz_send: {e}")
+                            logger.exception(f"An error occurred in quiz_call_click/quiz_quiz_send: {e}")
                             self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
                     elif call.data.startswith('quiz_quiz_delete'):
                         id_question = int(call.data.split('_')[-1])
                         self.database.quiz_delete(id_question)
                         self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
                         self.bot.send_message(user_id, "Викторина удалена", reply_markup=markup)
+                # Кнопки ответа на викторину
+                elif call.data.startswith('quiz_question_'):
+                    if role == 'user':
+                        markup = self.user_markup()
+                    else:
+                        markup = self.admin_markup()
+                        self.database.clear_pending_command(user_id)
+                    self.quiz.quiz_save_answer(call)
+                    self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                    self.bot.send_message(user_id, "Благодарим за ответ", reply_markup=markup)
             except Exception as e:
-                logger.exception(f"An error occurred in callback_query_handler: {e}")
+                logger.exception(f"An error occurred in quiz_call_click: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
         # Получение информации о виторине по id

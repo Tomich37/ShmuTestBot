@@ -185,9 +185,24 @@ class Quiz:
                         
                     self.bot.send_message(chat_id=user_id, text=question_text, reply_markup=markup)
                 else:
-                    self.bot.send_message(user_id, "Виктрины с таким ID не существует")
+                    self.bot.send_message(user_id, "Викторины с таким ID не существует")
             except ValueError:
                 self.bot.send_message(user_id, "Ожидается число")            
         except Exception as e:
             self.logger.exception(f"An error occurred in quiz/quiz_get_quiz_by_id: {e}")
             self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+    def quiz_save_answer(self, call):
+        user_id = call.from_user.id
+        user_info = self.database.get_user_info(user_id)
+        question_id, answer_id = self.quiz_extract_ids_from_callback(call.data)
+        question_text = self.database.get_quiz_question(question_id)
+        answer_text = self.database.quiz_get_answer_text_by_id(answer_id)
+        
+        self.database.quiz_save_answers(user_id, user_info[0], user_info[1], question_text[0], answer_text[0])
+
+    def quiz_extract_ids_from_callback(self, callback_data):
+        parts = callback_data.split('_')
+        question_id = int(parts[2])
+        answer_id = int(parts[4])
+        return question_id, answer_id

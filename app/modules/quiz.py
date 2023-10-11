@@ -19,11 +19,14 @@ class Quiz:
     @staticmethod
     def quiz_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        start_button= types.KeyboardButton(text="Запустить опрос")
         create_button= types.KeyboardButton(text="Создать викторину")
         send_button= types.KeyboardButton(text="Выполнить викторину")
         upload_results_button= types.KeyboardButton(text="Выгрузить результаты")
         menu_button= types.KeyboardButton(text="Меню")
-        markup.add(create_button, send_button, upload_results_button, menu_button)
+        markup.add(start_button)
+        markup.add(create_button, send_button, upload_results_button)
+        markup.add(menu_button)
         return markup
     
     def quiz_press_button(self, message):

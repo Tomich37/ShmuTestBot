@@ -961,11 +961,15 @@ class DialogBot:
                                 markup.add(button)
 
                             all_users_id = [user_id[0] for user_id in all_users_id]
+                            i = 1
+                            process_messge = self.bot.send_message(user_id, f"Процесс рассылки викторины: 0/{len(all_users_id)}", reply_markup=markup)
                             for user_id in all_users_id:
                                 try:
+                                    self.bot.edit_message_text(f"Процесс рассылки викторины: {i}/{len(all_users_id)}", chat_id=call.message.chat.id, message_id=process_messge.message_id)
                                     self.bot.send_message(user_id, question_text, reply_markup=markup)
                                     logger.info(f"User ID: {user_id}, успешная рассылка викторины") 
-                                    time.sleep(3)
+                                    i += 1
+                                    time.sleep(1)
                                 except telebot.apihelper.ApiTelegramException as e:
                                     if e.result.status_code == 403:
                                         # Пользователь заблокировал бота

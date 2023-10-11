@@ -82,7 +82,7 @@ class Quiz:
 
             markup = types.InlineKeyboardMarkup()
             for ans_id, q_id, ans_text in answers:
-                button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_question_{q_id}_answer_{ans_id}')
+                button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_test_question_{q_id}_answer_{ans_id}')
                 markup.add(button)
                 
             self.bot.send_message(chat_id=user_id, text=question_text, reply_markup=markup)
@@ -179,7 +179,7 @@ class Quiz:
 
                     markup = types.InlineKeyboardMarkup()
                     for ans_id, q_id, ans_text in answers:
-                        button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_question_{q_id}_answer_{ans_id}')
+                        button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_test_question_{q_id}_answer_{ans_id}')
                         markup.add(button)
                     
                     markup.add(send_button, delete_button)

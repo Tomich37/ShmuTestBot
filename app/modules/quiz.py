@@ -28,10 +28,15 @@ class Quiz:
     
     def quiz_press_button(self, message):
         user_id = message.from_user.id
+        role = self.database.get_user_role(user_id)
         try:
-            self.database.set_pending_command(user_id, '/set_quiz')
-            markup = self.quiz_markup()
-            self.bot.send_message(user_id, 'Выберите действие', reply_markup = markup)
+            if role != "user":
+                self.database.set_pending_command(user_id, '/set_quiz')
+                markup = self.quiz_markup()
+                self.bot.send_message(user_id, 'Выберите действие', reply_markup = markup)
+            else:
+                self.database.clear_pending_command(user_id)
+                self.bot.send_message(user_id, "У вас недостаточно прав")
         except Exception as e:
             self.logger.exception(f"An error occurred in quiz/quiz_press_button: {e}")
             self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")

@@ -562,3 +562,54 @@ class Database:
             cursor.execute("SELECT * FROM quiz_users_answers")
             result = cursor.fetchall()
         return result
+    
+    def survey_add_speaker(self, user_id, speaker):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO survey_users_answers (user_id, speaker) VALUES (?, ?)", (user_id, speaker))
+            conn.commit()
+
+    def survey_materials_yes_button(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE survey_users_answers SET used_materials = 1 WHERE user_id = {user_id}")
+            conn.commit()
+
+    def survey_materials_no_button(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE survey_users_answers SET used_materials = 0 WHERE user_id = {user_id}")
+            conn.commit()
+    
+    def survey_birthday(self, user_id, birthday):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE survey_users_answers SET birthday = ? WHERE user_id = ?",
+                        (str(birthday), user_id))
+            conn.commit()
+
+    def survey_wish_yes_button(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE survey_users_answers SET wish = 1 WHERE user_id = {user_id}")
+            conn.commit()
+
+    def survey_wish_no_button(self, user_id):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE survey_users_answers SET wish = 0 WHERE user_id = {user_id}")
+            conn.commit()
+
+    def survey_fio(self, user_id, fio):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE survey_users_answers SET fio = ? WHERE user_id = ?",
+                        (str(fio), user_id))
+            conn.commit()
+
+    def survey_comments(self, user_id, comments):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE survey_users_answers SET comments = ? WHERE user_id = ?",
+                        (str(comments), user_id))
+            conn.commit()

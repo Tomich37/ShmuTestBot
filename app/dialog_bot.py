@@ -403,6 +403,7 @@ class DialogBot:
                         try:
                             markup = self.user_markup()
                             self.bot.send_message(userd_id, text, parse_mode='HTML', entities=entities, reply_markup=markup)
+                            self.database.clear_pending_command(userd_id)
                             logger.info(f"User ID: {userd_id}, успешная доставка текста") 
                             time.sleep(3)
                         except telebot.apihelper.ApiTelegramException as e:
@@ -486,6 +487,7 @@ class DialogBot:
                             for file_path in file_paths:
                                 with open(file_path, 'rb') as file:
                                     self.bot.send_document(userd_id, file)
+                                    self.database.clear_pending_command(userd_id)
                                     logger.info(f"User ID: {userd_id}, успешная доставка документов") 
                             time.sleep(3)
                         except telebot.apihelper.ApiTelegramException as e:
@@ -655,6 +657,7 @@ class DialogBot:
                         markup = self.user_markup()
                         try:
                             message = self.bot.send_media_group(userd_id, self.photo_group)
+                            self.database.clear_pending_command(userd_id)
                             time.sleep(3)
                             logger.info(f"User ID: {userd_id}, фото доставлено")   
                         except telebot.apihelper.ApiTelegramException as e:
@@ -736,6 +739,7 @@ class DialogBot:
                         for userd_id in self.user_ids:
                             try:
                                 self.bot.forward_message(userd_id, message.chat.id, message_id)  # Пересылаем сообщение с видео
+                                self.database.clear_pending_command(userd_id)
                                 time.sleep(3)
                                 logger.info(f"User ID: {userd_id}, видео доставлено")   
                             except telebot.apihelper.ApiTelegramException as e:
@@ -898,6 +902,8 @@ class DialogBot:
                 self.quiz.quiz_choice(message)
             elif message.text == "Выгрузить результаты":
                 self.quiz.quiz_get_all_results(message)
+            elif message.text == "Запустить опрос":
+                self.quiz.quiz_survey_press_button(message)
 
         # Создание вопроса в викторине
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')
@@ -1001,15 +1007,66 @@ class DialogBot:
                     self.quiz.quiz_save_answer(call)
                     self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
                     self.bot.send_message(user_id, "Благодарим за ответ", reply_markup=markup)
+                elif call.data.startswith('quiz_survey_'):
+                    if call.data == 'quiz_survey_ready':
+                        self.quiz.quiz_survey_first_question(call)
+                    elif call.data == 'quiz_survey_materials_yes':
+                        self.database.survey_materials_yes_button(user_id)
+                        self.quiz.quiz_survey_birthday_request(call)
+                    elif call.data == 'quiz_survey_materials_no':
+                        self.database.survey_materials_no_button(user_id)
+                        self.quiz.quiz_survey_birthday_request(call)
+                    elif call.data == 'quiz_survey_wish_yes':
+                        self.database.survey_wish_yes_button(user_id)
+                        self.quiz.quiz_survey_fio_request(call)
+                    elif call.data == 'quiz_survey_wish_no':
+                        self.database.survey_wish_no_button(user_id)
+                        self.quiz.quiz_survey_fio_request(call)
+                    time.sleep(0.5)
             except Exception as e:
                 logger.exception(f"An error occurred in quiz_call_click: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
-        # Получение информации о виторине по id
+        # Получение информации о викторине по id
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_choice')
         def quiz_get_quiz_by_id(message):
             self.quiz.quiz_get_quiz_by_id(message)
+            time.sleep(0.5)
 
+        # Получение информации спикере
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_survey_speaker')
+        def quiz_survey_speaker(message):
+            self.quiz.quiz_survey_speaker(message)
+            time.sleep(0.5)
+
+        # Получение информации о дне рождении
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_survey_birthday')
+        def quiz_survey_birthday(message):
+            user_id = message.from_user.id
+            birthday = message.text
+            self.database.survey_birthday(user_id, birthday)
+
+            self.quiz.quiz_survey_wish(message)
+            time.sleep(0.5)
+
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_survey_fio')
+        def quiz_survey_fio(message):
+            user_id = message.from_user.id
+            birthday = message.text
+            self.database.survey_fio(user_id, birthday)
+
+            self.quiz.quiz_survey_comments(message)
+            time.sleep(0.5)
+
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_survey_comments')
+        def quiz_survey_comments(message):
+            user_id = message.from_user.id
+            comments = message.text
+            self.database.survey_comments(user_id, comments)
+
+            self.quiz.quiz_survey_final(message)
+            time.sleep(0.5)
+        
 
         # Запуск бота
         self.bot.polling()

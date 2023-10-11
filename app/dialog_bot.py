@@ -129,7 +129,7 @@ class DialogBot:
                     media_dir = os.path.join(current_dir, 'modules', 'media')
                     photo_path = os.path.join(media_dir, 'avatar.png')
                     # Значения нет в таблице, выполняем вставку
-                    text = "Спасибо за регистрацию ❤️\n\nВ течение ближайших двух месяцев вы будете учиться работать в информационном пространстве в современных условиях с учетом специфики вашего региона.\n\nПервый вебинар состоится уже на этой неделе, не пропустите приглашение 🔥\n\nСкоро в боте появятся функции базы знаний, чтобы вы могли всегда найти самое важное ✅"
+                    text = "Спасибо за регистрацию ❤️\n\nСкоро вы узнаете, как работать в  современном информационном пространстве вашего региона.\n\nВ ближайшее время мы отправим вам приглашение на лекцию, а пока вы можете посмотреть записи прошлых вебинаров, нажав на кнопку «Материалы» в панели меню.\n\nДо встречи на новых трансляциях!"
                     photo = open(photo_path, 'rb')
                     self.bot.send_photo(message.chat.id, photo, caption=text)
                     markup = self.menu_markup()                    
@@ -144,8 +144,7 @@ class DialogBot:
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     
                 if user_role == "admin" or user_role == "moderator":
-                    moderation_button = types.KeyboardButton(text="Модерация")
-                    markup.add(moderation_button)
+                    markup = self.admin_markup()
                     self.bot.send_message(message.chat.id, "Теперь вы авторизованы и можете пользоваться другими командами бота.", reply_markup=markup)
                     self.bot.clear_reply_handlers(message)
                 elif user_role == "user":
@@ -196,7 +195,7 @@ class DialogBot:
                 if self.database.user_exists_id(user_id):
                     if user_role != 'user':
                         self.database.set_pending_command(user_id, '/add_users')  # Сохраняем команду в БД для последующего использования
-                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\n\nОпциональные столбцы:\nfirst_name - имя\nlast_name - фамилия\nregion - регион\nuser_group - группа пользователей (Базовая, продвинутая, блогеры)")
+                        self.bot.send_message(message.chat.id, "Загрузите exel файл. \n\nОбязательные столбцы:\nphone_number - телефон пользователя\nfio - ФИО пользователя\n\nОпциональные столбцы:\nregion - регион\nuser_group - группа пользователя\njob - должность пользователя")
                     else:
                         self.bot.send_message(user_id, "Недостаточно прав")
                 else:
@@ -273,15 +272,18 @@ class DialogBot:
 
                 elif action == 'cancel':
                     self.database.get_temp_phone_number(user_id)
-                    phone_number = self.database.get_temp_phone_number(user_id)
-                    user_info = self.database.user_info_phone_number(phone_number)
+                    phone_number = self.database.get_temp_phone_number(user_id)                    
                     markup = self.menu_markup()
-                    self.database.clear_pending_command(user_id)
-                    self.database.clear_temp_phone_number(user_id)
-                    self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
-                    user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
+                    if phone_number is not None:
+                        user_info = self.database.user_info_phone_number(phone_number)
+                        self.database.clear_pending_command(user_id)
+                        self.database.clear_temp_phone_number(user_id)
+                        self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
+                        user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
 
-                    self.bot.send_message(user_id, user_message, reply_markup=markup)
+                        self.bot.send_message(user_id, user_message, reply_markup=markup)
+                    else:
+                        self.bot.send_message(user_id, 'Пользователь еще не зарегестрировался, обновление невозможно', reply_markup=markup)
 
                 else:
                     # Неизвестное действие, обработка ошибки или другие действия по вашему усмотрению

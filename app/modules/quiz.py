@@ -22,10 +22,12 @@ class Quiz:
         start_button= types.KeyboardButton(text="Запустить опрос")
         create_button= types.KeyboardButton(text="Создать викторину")
         send_button= types.KeyboardButton(text="Выполнить викторину")
-        upload_results_button= types.KeyboardButton(text="Выгрузить результаты")
+        upload_quiz_results_button= types.KeyboardButton(text="Выгрузить результаты викторины")
+        upload_survey_results_button= types.KeyboardButton(text="Выгрузить результаты опроса")
         menu_button= types.KeyboardButton(text="Меню")
         markup.add(start_button)
-        markup.add(create_button, send_button, upload_results_button)
+        markup.add(upload_survey_results_button)
+        markup.add(create_button, send_button, upload_quiz_results_button)
         markup.add(menu_button)
         return markup
     
@@ -289,7 +291,8 @@ class Quiz:
     def quiz_survey_speaker(self, message):
         user_id = message.from_user.id
         speaker = message.text
-        self.database.survey_add_speaker(user_id, speaker)
+        user_info = self.database.get_user_info(user_id)
+        self.database.survey_add_speaker(user_id, speaker, fio=user_info[0], phone_number=user_info[1])
 
         text = 'Используете ли вы материалы после обучения?'
         markup = types.InlineKeyboardMarkup()
@@ -333,5 +336,31 @@ class Quiz:
     def quiz_survey_final(self, message):
         user_id = message.from_user.id
         self.database.clear_pending_command(user_id)
+        markup = self.menu_markup()
         text = 'Спасибо вам за обратную связь! Если вы готовы продолжать, мы вернёмся к вам с новыми курсами и мероприятиями в ближайшем будущем!'
-        self.bot.send_message(user_id, text)
+        self.bot.send_message(user_id, text, reply_markup=markup)
+
+    def quiz_get_survey_results(self, message):
+        try:
+            user_id = message.from_user.id
+            results = self.database.survey_get_all_results()
+            
+            if results:
+                # Создаем DataFrame из результата запроса
+                df = pd.DataFrame(results, columns=["ID ответа", "ID пользователя", "Вопрос про спикера", "Использование материалов", "День рождения", "Желание продолжать учиться", "ФИО", "Комментарий", "ФИО при регистрации", "Номер телефона"])
+
+                # Сохраняем DataFrame в Excel-файл
+                excel_path = "quiz_results.xlsx"
+                df.to_excel(excel_path, index=False)
+
+                # Отправляем Excel-файл пользователю
+                with open(excel_path, "rb") as file:
+                    self.bot.send_document(user_id, file)
+
+                # Удаляем временный файл
+                os.remove(excel_path)
+            else:
+                self.bot.send_message(user_id, "Нет результатов для экспорта.")
+        except Exception as e:
+            self.logger.exception(f"An error occurred in quiz/quiz_get_all_results: {e}")
+            self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")

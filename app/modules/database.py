@@ -563,10 +563,10 @@ class Database:
             result = cursor.fetchall()
         return result
     
-    def survey_add_speaker(self, user_id, speaker):
+    def survey_add_speaker(self, user_id, speaker, fio, phone_number):
         with self.get_database_connection_users() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT OR REPLACE INTO survey_users_answers (user_id, speaker) VALUES (?, ?)", (user_id, speaker))
+            cursor.execute("INSERT OR REPLACE INTO survey_users_answers (user_id, speaker, user_fio, phone_number) VALUES (?, ?, ?, ?)", (user_id, speaker, fio, phone_number))
             conn.commit()
 
     def survey_materials_yes_button(self, user_id):
@@ -613,3 +613,10 @@ class Database:
             cursor.execute("UPDATE survey_users_answers SET comments = ? WHERE user_id = ?",
                         (str(comments), user_id))
             conn.commit()
+
+    def survey_get_all_results(self):
+        with self.get_database_connection_users() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM survey_users_answers")
+            result = cursor.fetchall()
+        return result

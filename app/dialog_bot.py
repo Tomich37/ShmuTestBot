@@ -900,10 +900,12 @@ class DialogBot:
                 self.quiz.quiz_set_question(message)
             elif message.text == "Выполнить викторину":
                 self.quiz.quiz_choice(message)
-            elif message.text == "Выгрузить результаты":
+            elif message.text == "Выгрузить результаты викторины":
                 self.quiz.quiz_get_all_results(message)
             elif message.text == "Запустить опрос":
                 self.quiz.quiz_survey_press_button(message)
+            elif message.text == "Выгрузить результаты опроса":
+                self.quiz.quiz_get_survey_results(message)
 
         # Создание вопроса в викторине
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')

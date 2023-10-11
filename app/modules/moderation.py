@@ -1,6 +1,4 @@
 from .database import Database
-import configparser
-import telebot
 import openpyxl
 from openpyxl import Workbook
 import os
@@ -17,11 +15,13 @@ class Moderation:
     @staticmethod
     def admin_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        quiz_button = types.KeyboardButton(text="Викторина")
         add_moderator_button = types.KeyboardButton(text="Добавить модератора")
         delete_moderator_button = types.KeyboardButton(text="Снять с поста модератора")
         distribution_button= types.KeyboardButton(text="Создать рассылку")
         users_button= types.KeyboardButton(text="Работа с пользователями")
         menu_button= types.KeyboardButton(text="Меню")
+        markup.add(quiz_button)
         markup.add(distribution_button)
         markup.add(add_moderator_button)
         markup.add(delete_moderator_button)
@@ -32,7 +32,6 @@ class Moderation:
     @staticmethod
     def admin_user_markup():
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-        quiz_button = types.KeyboardButton(text="Викторина")
         add_users_button= types.KeyboardButton(text="Добавить пользователей")
         get_users_button= types.KeyboardButton(text="Выгрузить пользователей")
         users_edit= types.KeyboardButton(text="Редактирование пользователя")
@@ -105,8 +104,8 @@ class Moderation:
 
                     # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
                     keyboard = types.InlineKeyboardMarkup()
-                    confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_add_mod_{phone_number}")
-                    cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_add_mod")
+                    confirm_add_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"mod_confirm_add_{phone_number}")
+                    cancel_add_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="mod_cancel_add")
                     keyboard.add(confirm_add_mod_button, cancel_add_mod_button)
 
                     # Отправляем сообщение с клавиатурой
@@ -149,8 +148,8 @@ class Moderation:
                     
                     # Создаем клавиатуру с кнопками "Подтвердить" и "Отмена"
                     keyboard = types.InlineKeyboardMarkup()
-                    confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"confirm_remove_mod_{phone_number}")
-                    cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="cancel_remove_mod")
+                    confirm_remove_mod_button = types.InlineKeyboardButton(text="Подтвердить", callback_data=f"mod_confirm_remove_{phone_number}")
+                    cancel_remove_mod_button = types.InlineKeyboardButton(text="Отмена", callback_data="mod_cancel_remove")
                     keyboard.add(confirm_remove_mod_button, cancel_remove_mod_button)
 
                     # Отправляем сообщение с клавиатурой

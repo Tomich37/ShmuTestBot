@@ -8,6 +8,7 @@ from telebot import types
 from .modules.moderation import Moderation
 from .modules.user_staff import User
 from .modules.distribution import Distribution
+from app.modules.quiz import Quiz
 import os
 import datetime
 
@@ -54,6 +55,7 @@ class DialogBot:
         self.user = User(self.bot, self.database)  # Pass authorized_user=False
         self.moderation = Moderation(self.bot, self.save_directory)
         self.distribution = Distribution(self.bot, self.save_directory, self.i)
+        self.quiz = Quiz(self.bot, logger)
 
     @staticmethod
     def admin_markup():
@@ -83,15 +85,6 @@ class DialogBot:
         return markup
 
     def run(self):
-        # Показывает меню с кнопками
-        def __show_menu(chat_id):
-            markup = types.InlineKeyboardMarkup()
-            next_button = types.InlineKeyboardButton("Следующие", callback_data='next')
-            prev_button = types.InlineKeyboardButton("Предыдущие", callback_data='prev')
-            markup.row(prev_button)
-            markup.row(next_button)
-            self.bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
-
         # Обработчик команды /start
         @self.bot.message_handler(commands=['start'])
         def __handle_start(message):
@@ -154,7 +147,7 @@ class DialogBot:
                     
             except Exception as e:
                 # Запись исключения в лог с указанием traceback
-                logger.exception("Произошла ошибка")
+                logger.exception(f"Произошла ошибка  {e}")
         
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/fio')
         def handle_fio(message):
@@ -171,7 +164,7 @@ class DialogBot:
                 logger.info(f"User ID: {user_id}, FIO: {message.text}")
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in handle_fio:")
+                logger.exception(f"An error occurred in handle_fio: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке ФИО. Пожалуйста, повторите попытку позже.")
 
         # Вызов функции check_moderation при получении сообщения "Модерация"
@@ -184,7 +177,7 @@ class DialogBot:
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in handle_moderation:")
+                logger.exception(f"An error occurred in handle_moderation: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке модерации. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'добавить пользователей')
@@ -201,7 +194,7 @@ class DialogBot:
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in handle_add_users:")
+                logger.exception(f"An error occurred in handle_add_users: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке добавления пользователей. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text == "Меню")
@@ -219,10 +212,11 @@ class DialogBot:
                     else:
                         markup = self.moderation.moder_markup()
                         self.bot.send_message(user_id, "Выберите действие:", reply_markup=markup)
+                    self.database.clear_pending_command(user_id)
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in handle_menu:")
+                logger.exception(f"An error occurred in handle_menu: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при обработке меню. Пожалуйста, повторите попытку позже.")
 
         # Вызов функции add_moderator при получении сообщения "Добавить модератора"
@@ -235,7 +229,7 @@ class DialogBot:
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in add_moderator_button:")
+                logger.exception(f"An error occurred in add_moderator_button: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при добавлении модератора. Пожалуйста, повторите попытку позже.")
         
         # Обработчик команды /add_mod
@@ -249,7 +243,7 @@ class DialogBot:
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in add_moderator_button:")
+                logger.exception(f"An error occurred in add_moderator_button: {e}")
                 self.bot.send_message(message.chat.id, "Произошла ошибка при добавлении модератора. Пожалуйста, повторите попытку позже.")
 
         # Обработка кнопок редактирования пользователя
@@ -277,7 +271,7 @@ class DialogBot:
                     if phone_number is not None:
                         user_info = self.database.user_info_phone_number(phone_number)
                         self.database.clear_pending_command(user_id)
-                        self.database.clear_temp_phone_number(user_id)
+                        self.database.clear_temp(user_id)
                         self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
                         user_message = f"Информация о пользователе:\n\nФИО: {user_info[2]}\nНомер телефона: {user_info[0]}\nID: {user_info[1]}\nРоль: {user_info[3]}\nРегион: {user_info[4]}\nГруппа: {user_info[5]}"
 
@@ -289,31 +283,31 @@ class DialogBot:
                     # Неизвестное действие, обработка ошибки или другие действия по вашему усмотрению
                     self.bot.send_message(user_id, "Неизвестное действие")
             except Exception as e:
-                logger.exception("An error occurred in handle_edit_user_buttons:")
+                logger.exception(f"An error occurred in handle_edit_user_buttons: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
         # Кнопки подтверждения/отмены
-        @self.bot.callback_query_handler(func=lambda call: True)
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('mod_'))
         def handle_button_click(call):
             user_id = call.from_user.id
             try:
                 markup = None
-                if call.data.startswith('confirm_add_mod_'):
+                if call.data.startswith('mod_confirm_add_'):
                     phone_number = call.data.split('_')[3]
                     self.database.add_moderator(phone_number)
                     markup = self.moderation.admin_markup()
                     self.bot.send_message(call.message.chat.id, "Модератор добавлен", reply_markup=markup)
-                elif call.data == 'cancel_add_mod':
+                elif call.data == 'mod_cancel_add':
                     self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
-                elif call.data.startswith('confirm_remove_mod_'):
+                elif call.data.startswith('mod_confirm_remove_'):
                     phone_number = call.data.split('_')[3]
                     self.database.remove_moderator(phone_number)
                     markup = self.moderation.admin_markup()
                     self.bot.send_message(call.message.chat.id, "Модератор снят", reply_markup=markup)
-                elif call.data == 'cancel_remove_mod':
+                elif call.data == 'mod_cancel_remove':
                     self.bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
             except Exception as e:
-                logger.exception("An error occurred in handle_button_click:")
+                logger.exception(f"An error occurred in handle_button_click: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
 
 
@@ -324,7 +318,7 @@ class DialogBot:
             try:
                 self.moderation.remove_moderator_button(user_id)
             except Exception as e:
-                logger.exception("An error occurred in remove_moderator_button:")
+                logger.exception(f"An error occurred in remove_moderator_button: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке запроса. Пожалуйста, повторите попытку позже.")
         
         # Обработчик команды /remove_mod
@@ -338,7 +332,7 @@ class DialogBot:
                 else:
                     __handle_start(message)
             except Exception as e:
-                logger.exception("An error occurred in remove_mod:")
+                logger.exception(f"An error occurred in remove_mod: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке команды. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'создать рассылку')
@@ -353,7 +347,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Введите текст рассылки, или приложите файлы \n\nНа данный момент поддерживаются:\n1.Текстовая рассылка\n2.До 9 фотографий с подписью\n3.Документы без подписи")
                 logger.info(f"User ID: {user_id}, создание рассылки")
             except Exception as e:
-                logger.exception("An error occurred in start_distribution:")
+                logger.exception(f"An error occurred in start_distribution: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при начале создания рассылки. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/cd')
@@ -382,7 +376,7 @@ class DialogBot:
                         __handle_start(message)
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in process_distribution_text:")
+                logger.exception(f"An error occurred in process_distribution_text: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке рассылки. Пожалуйста, повторите попытку позже.")
         
         #Текстовая рассылка
@@ -433,9 +427,8 @@ class DialogBot:
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in finish_text_distribution:")
+                logger.exception(f"An error occurred in finish_text_distribution: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при обработке рассылки. Пожалуйста, повторите попытку позже.")
-                
 
         #Если загружено фото
         @self.bot.message_handler(content_types=['photo'])
@@ -446,7 +439,7 @@ class DialogBot:
                     self.distribution.process_distribution_photo(message)
                 logger.info(f"User ID: {user_id}, получение фото в рассылке")  
             except Exception as e:
-                logger.exception("An error occurred in handle_photo:")
+                logger.exception(f"An error occurred in handle_photo: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при загрузке фото. Пожалуйста, повторите попытку позже.")
                 
         
@@ -471,7 +464,7 @@ class DialogBot:
                     self.moderation.add_users(message)
                 logger.info(f"User ID: {user_id}, получение документа в рассылке") 
             except Exception as e:
-                logger.exception("An error occurred in save_file:")
+                logger.exception(f"An error occurred in save_file: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при загрузке документа. Пожалуйста, повторите попытку позже.")
 
         #Обработка кнопки "завершить рассылку документов"
@@ -518,7 +511,7 @@ class DialogBot:
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in finish_document_distribution:")
+                logger.exception(f"An error occurred in finish_document_distribution: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'отменить рассылку')
@@ -563,7 +556,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in select_document_groups:")
+                logger.exception(f"An error occurred in select_document_groups: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'назначить группы')
@@ -604,7 +597,7 @@ class DialogBot:
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in select_text_groups:")
+                logger.exception(f"An error occurred in select_text_groups: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
         @self.bot.message_handler(func=lambda message: message.text.lower() == 'добавить группы')
@@ -645,7 +638,7 @@ class DialogBot:
     
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
-                logger.exception("An error occurred in select_text_groups:")
+                logger.exception(f"An error occurred in select_text_groups: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
 
         # Отправка фото
@@ -686,7 +679,7 @@ class DialogBot:
                     self.bot.send_message(user_id, "У вас недостаточно прав")
             except Exception as e:
                 self.database.clear_pending_command(user_id)
-                logger.exception("An error occurred in finish_photo_distribution:")
+                logger.exception(f"An error occurred in finish_photo_distribution: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
 
         # Обработка кнопки "Выгрузить пользователей"
@@ -713,7 +706,7 @@ class DialogBot:
                         logger.info(f"User_ID {user_id}: Слишком большое видео")
                         self.bot.send_message(message.chat.id, "Ошибка: видеофайл слишком большой для отправки.")
                     else:
-                        logger.exception("An error occurred in handle_video_file:")
+                        logger.exception(f"An error occurred in handle_video_file: {e}")
                         self.bot.send_message(message.chat.id, "Произошла ошибка при отправке видео. Пожалуйста, повторите попытку позже.")
         
         #Обработка видео
@@ -765,7 +758,7 @@ class DialogBot:
                         self.bot.send_message(user_id, "У вас недостаточно прав")
                     self.database.clear_pending_command(user_id)
                 except Exception as e:
-                    logger.exception("An error occurred in finish_photo_distribution:")
+                    logger.exception(f"An error occurred in finish_photo_distribution: {e}")
                     self.database.clear_pending_command(user_id)
                     self.bot.send_message(user_id, "Произошла ошибка при завершении рассылки. Пожалуйста, повторите попытку позже.")
         
@@ -795,7 +788,7 @@ class DialogBot:
                 self.database.set_pending_command(user_id, '/svgg')    
                 self.bot.send_message(message.chat.id, "Группы рассылки назначены", reply_markup=markup) 
             except Exception as e:
-                logger.exception("An error occurred in select_video_groups:")
+                logger.exception(f"An error occurred in select_video_groups: {e}")
                 self.bot.send_message(user_id, "Произошла ошибка при назначении групп. Пожалуйста, повторите попытку позже.")
         
         # Обработка кнопки "Материалы"
@@ -806,7 +799,7 @@ class DialogBot:
                 logger.info(f"User ID: {user_id}, получение материалов") 
                 self.user.get_materials(message)
             except Exception as e:
-                logger.exception("An error occurred in get_materials:")
+                logger.exception(f"An error occurred in get_materials: {e}")
                 self.bot.send_message(user_id, "Ошибка при отправке материалов. Пожалуйста, повторите попытку позже")
         
         # Обработка кнопки "Оставить отзыв"
@@ -817,7 +810,7 @@ class DialogBot:
                 logger.info(f"User ID: {user_id}, получение отзыва") 
                 self.user.get_review(message)
             except Exception as e:
-                logger.exception("An error occurred in get_materials:")
+                logger.exception(f"An error occurred in get_materials: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
         # Обработка кнопки "Работа с пользователями"
@@ -829,7 +822,7 @@ class DialogBot:
                 markup = self.moderation.admin_user_markup()
                 self.bot.send_message(user_id, "Выберите действие", reply_markup = markup)
             except Exception as e:
-                logger.exception("An error occurred in work_with_users:")
+                logger.exception(f"An error occurred in work_with_users: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
         # Обработка кнопки "Редактирование пользователя"
@@ -842,7 +835,7 @@ class DialogBot:
                 self.database.set_pending_command(user_id, '/eu')
                 self.bot.send_message(user_id, 'Введите фамилию или номер телефона пользователя', reply_markup = hide_markup)
             except Exception as e:
-                logger.exception("An error occurred in request_edit_user:")
+                logger.exception(f"An error occurred in request_edit_user: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/eu')
@@ -851,7 +844,7 @@ class DialogBot:
             try:
                 self.moderation.edit_user(message)
             except Exception as e:
-                logger.exception("An error occurred in edit_user:")
+                logger.exception(f"An error occurred in edit_user: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
         
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/eufio')
@@ -866,7 +859,7 @@ class DialogBot:
                 try:
                     self.database.update_user_fio(fio, user_id)
                 except Exception as e:
-                    logger.exception("An error occurred in edit_user:")
+                    logger.exception(f"An error occurred in edit_user: {e}")
                     self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
             else:
                 self.bot.send_message(user_id, "Фио должно содержать только буквы")
@@ -878,7 +871,7 @@ class DialogBot:
             try:
                 self.database.update_user_region(region, user_id)
             except Exception as e:
-                logger.exception("An error occurred in edit_user:")
+                logger.exception(f"An error occurred in edit_user: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
 
         @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/eugroup')
@@ -888,8 +881,134 @@ class DialogBot:
             try:
                 self.database.update_user_group(group, user_id)
             except Exception as e:
-                logger.exception("An error occurred in edit_user:")
+                logger.exception(f"An error occurred in edit_user: {e}")
                 self.bot.send_message(user_id, "Ошибка при обработке кнопки. Пожалуйста, повторите попытку позже")
+
+        # Обработка кнопки "Викторина"
+        @self.bot.message_handler(func=lambda message: message.text == 'Викторина')
+        def quiz_press_button(message):
+            self.quiz.quiz_press_button(message)
+
+        # Работа с викториной
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz')
+        def set_quiz(message):
+            if message.text == "Создать викторину":
+                self.quiz.quiz_set_question(message)
+            elif message.text == "Выполнить викторину":
+                self.quiz.quiz_choice(message)
+            elif message.text == "Выгрузить результаты":
+                self.quiz.quiz_get_all_results(message)
+
+        # Создание вопроса в викторине
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_question')
+        def quiz_add_question(message):
+            self.quiz.quiz_add_question(message)
+
+        # Создание ответа в викторине
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/set_quiz_answer')
+        def quiz_add_answer(message):
+            user_id = message.from_user.id
+            if message.text == "Завершить":
+                self.database.set_pending_command(user_id, '/set_quiz')
+                markup = self.quiz.quiz_markup()
+                self.bot.send_message(user_id, "Викторина создана и сохранена.", reply_markup=markup)
+            elif message.text == "Отмена":
+                self.database.set_pending_command(user_id, '/set_quiz')
+                markup = self.quiz.quiz_markup()
+
+                id_question = self.database.get_quiz_question_id(user_id)
+                self.database.quiz_delete(id_question)
+
+                self.bot.send_message(user_id, "Вы отменили создание викторины, выберите действие.", reply_markup=markup)
+            else:
+                self.quiz.quiz_add_answer(message)
+
+        # Взаимодействие кнопок call викторины
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('quiz_'))
+        def quiz_call_click(call):
+            user_id = call.from_user.id
+            markup = self.quiz.quiz_markup()
+            role = self.database.get_user_role(user_id)
+            try:
+                # Кнопки вперед/назад/отмена для просмотра викторин
+                if call.data.startswith('quiz_group_'):
+                    if call.data.startswith('quiz_group_prev_'): 
+                        group_index = int(call.data.split('_')[-1])                   
+                        group_index -= 1
+                        self.quiz.quiz_upload_question_group(group_index, call)
+                    elif call.data.startswith('quiz_group_next_'):
+                        group_index = int(call.data.split('_')[-1]) 
+                        group_index += 1
+                        self.quiz.quiz_upload_question_group(group_index, call)
+                    elif call.data == 'quiz_group_cancle':
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                # Кнопки работы с отдельной викториной
+                elif call.data.startswith('quiz_quiz_'):
+                    self.database.set_pending_command(user_id, '/set_quiz')
+                    if call.data == 'quiz_quiz_cancle': 
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                        self.bot.send_message(user_id, "Выберите действие.", reply_markup=markup)
+                    elif call.data.startswith('quiz_quiz_send'):
+                        try:
+                            id_question = int(call.data.split('_')[-1])
+                            all_users_id = self.database.get_users()
+                            question_text = self.database.get_quiz_question(id_question)
+                            answers = self.database.get_quiz_answers(id_question)
+
+                            markup = types.InlineKeyboardMarkup()
+                            for ans_id, q_id, ans_text in answers:
+                                button = types.InlineKeyboardButton(ans_text, callback_data=f'quiz_question_{q_id}_answer_{ans_id}')
+                                markup.add(button)
+
+                            all_users_id = [user_id[0] for user_id in all_users_id]
+                            i = 1
+                            process_messge = self.bot.send_message(user_id, f"Процесс рассылки викторины: 0/{len(all_users_id)}", reply_markup=markup)
+                            for user_id in all_users_id:
+                                try:
+                                    self.bot.edit_message_text(f"Процесс рассылки викторины: {i}/{len(all_users_id)}", chat_id=call.message.chat.id, message_id=process_messge.message_id)
+                                    self.bot.send_message(user_id, question_text, reply_markup=markup)
+                                    logger.info(f"User ID: {user_id}, успешная рассылка викторины") 
+                                    i += 1
+                                    time.sleep(1)
+                                except telebot.apihelper.ApiTelegramException as e:
+                                    if e.result.status_code == 403:
+                                        # Пользователь заблокировал бота
+                                        self.database.update_user_authorized(user_id, 0)
+                                        logger.info(f"Пользователь с ID {user_id} заблокировал бота")
+                                        continue  # Продолжаем рассылку следующему пользователю
+                                    else:
+                                        logger.exception(f"Ошибка при отправке сообщения пользователю с ID {user_id}: {e}")
+                                        continue  # Продолжаем рассылку следующему пользователю
+                            if role == 'admin':
+                                markup = self.moderation.admin_markup()
+                                self.bot.send_message(user_id, "Рассылка выполнена", reply_markup=markup)
+                                logger.info(f"User ID: {user_id}, рассылка викторины завершена")
+                        except Exception as e:
+                            logger.exception(f"An error occurred in quiz_call_click/quiz_quiz_send: {e}")
+                            self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
+                    elif call.data.startswith('quiz_quiz_delete'):
+                        id_question = int(call.data.split('_')[-1])
+                        self.database.quiz_delete(id_question)
+                        self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                        self.bot.send_message(user_id, "Викторина удалена", reply_markup=markup)
+                # Кнопки ответа на викторину
+                elif call.data.startswith('quiz_question_'):
+                    if role == 'user':
+                        markup = self.user_markup()
+                    else:
+                        markup = self.admin_markup()
+                        self.database.clear_pending_command(user_id)
+                    self.quiz.quiz_save_answer(call)
+                    self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+                    self.bot.send_message(user_id, "Благодарим за ответ", reply_markup=markup)
+            except Exception as e:
+                logger.exception(f"An error occurred in quiz_call_click: {e}")
+                self.bot.send_message(user_id, "Произошла ошибка при обработке нажатия кнопки. Пожалуйста, повторите попытку позже.")
+
+        # Получение информации о виторине по id
+        @self.bot.message_handler(func=lambda message: self.database.get_pending_command(message.from_user.id) == '/quiz_choice')
+        def quiz_get_quiz_by_id(message):
+            self.quiz.quiz_get_quiz_by_id(message)
 
 
         # Запуск бота

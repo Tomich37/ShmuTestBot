@@ -307,7 +307,6 @@ class Quiz:
         self.bot.send_message(user_id, text)
 
     def quiz_survey_wish(self, message):
-        print('text')
         user_id = message.from_user.id
 
         text = 'Хотите ли вы продолжить обучение?'
